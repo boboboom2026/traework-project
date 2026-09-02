@@ -22,6 +22,7 @@ export default function Crews({ onNav }) {
     const descs = fd.getAll("task_desc");
     const exps = fd.getAll("task_exp");
     const ctxs = fd.getAll("task_ctx");
+    const outs = fd.getAll("task_out");
     for (let i = 0; i < titles.length; i++) {
       if (!titles[i].trim()) continue;
       tasks.push({
@@ -29,6 +30,7 @@ export default function Crews({ onNav }) {
         title: titles[i], agent_name: agentsA[i],
         description: descs[i], expected_output: exps[i],
         use_upstream: ctxs[i] === "on",
+        output_type: outs[i] || "text",
       });
     }
     const rec = {
@@ -144,10 +146,16 @@ function CrewEditor({ agents, editing, onClose, onSubmit }) {
                 <label>期望输出（expected_output）</label>
                 <input className="input" name="task_exp" defaultValue={t.expected_output} />
               </div>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, marginTop: 8, color: "var(--muted)", cursor: "pointer" }}>
-                <input type="checkbox" name="task_ctx" defaultChecked={!!t.use_upstream} />
-                ⛓ 引用所有上游任务输出（context 串联：把前序任务成果作为本任务上下文）
-              </label>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--muted)", cursor: "pointer" }}>
+                  <input type="checkbox" name="task_ctx" defaultChecked={!!t.use_upstream} />
+                  ⛓ 引用所有上游任务输出（context 串联）
+                </label>
+                <select className="input" name="task_out" defaultValue={t.output_type || "text"} style={{ width: 200, padding: "6px 10px", fontSize: 12.5 }}>
+                  <option value="text">输出形态：文本 text</option>
+                  <option value="json">输出形态：结构化 JSON</option>
+                </select>
+              </div>
               <div style={{ textAlign: "right", marginTop: 8 }}>
                 <button type="button" className="btn ghost sm" style={{ color: "var(--danger)" }} onClick={() => setTasks(tasks.filter((_, j) => j !== i))}>移除任务</button>
               </div>

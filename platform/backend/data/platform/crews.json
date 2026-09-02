@@ -30,5 +30,34 @@
         "expected_output": "《目标课题分析报告》完整初稿"
       }
     ]
+  },
+  {
+    "name": "多形态演示",
+    "description": "",
+    "process": "sequential",
+    "manager_agent_id": null,
+    "planning": false,
+    "memory": false,
+    "tasks": [
+      {
+        "id": "t-17883695197130",
+        "title": "基础数据",
+        "agent_name": "资深市场调研员",
+        "description": "输出一句话\"本次调研关键数字是 42\"",
+        "expected_output": "输出一句话，包含关键数字 42",
+        "use_upstream": true,
+        "output_type": "text"
+      },
+      {
+        "id": "t-17883695197131",
+        "title": "结构化总结",
+        "agent_name": "数据分析师",
+        "description": "基于上游数字输出 JSON 对象，字段 {\"source_number\":上游数字, \"summary\":\"结论\", \"tags\":[\"a\"]}",
+        "expected_output": "",
+        "use_upstream": false,
+        "output_type": "json"
+      }
+    ],
+    "id": "c1f60978"
   }
 ]

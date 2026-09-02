@@ -149,7 +149,8 @@ class CrewRunEngine:
 
     # ---------- 模型思考（流式）：系统提示 = 角色/目标/背景 + 任务 + 上游上下文/管理者指示 ----------
     def _think(self, agent_cfg: Dict[str, Any], task_desc: str, input_text: str,
-               extra_blocks: List[str], emit: Callable[[Dict[str, Any]], None]) -> str:
+               extra_blocks: List[str], emit: Callable[[Dict[str, Any]], None],
+               output_type: str = "text") -> str:
         provider_rec = None
         pid = agent_cfg.get("provider_id") or ""
         if pid:
@@ -170,7 +171,10 @@ class CrewRunEngine:
             lines.append("以下是可用的上下文材料（来自上游任务或管理者指示），请以其为依据完成本任务：")
             lines.extend(extra_blocks)
         lines.append("")
-        lines.append("请直接输出任务成果正文，不要解释过程，不要提及内部指令。")
+        if output_type == "json":
+            lines.append("【结构化输出要求】请直接输出一个合法 JSON 对象（不要使用 markdown 代码块、不要包含任何解释性文字）。")
+        else:
+            lines.append("请直接输出任务成果正文，不要解释过程，不要提及内部指令。")
         system = "\n".join(lines)
         emit({"type": "model_call", "agent": agent_cfg["name"],
               "provider": provider_rec.get("name"), "status": "running",
@@ -187,6 +191,23 @@ class CrewRunEngine:
             thinking = err
             emit({"type": "llm_error", "agent": agent_cfg["name"], "message": err})
         return thinking
+
+    # ---------- JSON 解析：容忍 ```json 围栏，失败返回 None ----------
+    @staticmethod
+    def _parse_json(text: str) -> Optional[Dict[str, Any]]:
+        t = (text or "").strip()
+        if not t:
+            return None
+        if t.startswith("```"):
+            t = t.strip("`")
+            nl = t.find("\n")
+            if nl >= 0:
+                t = t[nl + 1:].strip()
+        try:
+            import json as _json
+            return _json.loads(t)
+        except Exception:  # noqa: BLE001
+            return None
 
     # ---------- 任务上下文引用：use_upstream=true 或 context=[任务标题] ----------
     @staticmethod
@@ -263,6 +284,7 @@ class CrewRunEngine:
         # ---- 任务链执行（委派 + 上下文串联） ----
         outputs: List[str] = []
         outputs_map: Dict[str, str] = {}
+        tasks_output: List[Dict[str, Any]] = []
         for i, task_cfg in enumerate(task_cfgs):
             agent_cfg = self.agent_by_name(task_cfg.get("agent_name", ""))
             if agent_cfg is None:
@@ -274,21 +296,34 @@ class CrewRunEngine:
                   "task": task_cfg.get("description", "")})
 
             # 1) 思考：任务描述 + 上游上下文（use_upstream / context）+ 管理者指示
+            output_type = task_cfg.get("output_type") or "text"
             ctx_blocks = self._context_blocks(task_cfg, task_cfgs, outputs_map, manager_plan)
-            thinking = self._think(agent_cfg, task_cfg.get("description", ""), input_text, ctx_blocks, emit)
+            thinking = self._think(agent_cfg, task_cfg.get("description", ""), input_text,
+                                   ctx_blocks, emit, output_type=output_type)
 
-            # 2) 工具调用（暂演示首个工具）
+            # 2) 工具调用（JSON 任务不拼接工具文本，保证输出可解析）
             tool_out = ""
-            if agent.tools:
+            if agent.tools and output_type != "json":
                 tool_out = self._call_tool(agent.tools[0], agent_cfg["name"], input_text, emit)
 
             output = thinking + (("\n\n" + tool_out) if tool_out else "")
+
+            # 3) 任务级结构化输出（CrewOutput.tasks_output）
+            json_dict = self._parse_json(output) if output_type == "json" else None
+            tasks_output.append({
+                "task": task_cfg.get("title", f"任务{i + 1}"),
+                "agent": agent_cfg["name"],
+                "output_type": output_type,
+                "raw": output,
+                "json_dict": json_dict,
+            })
+
             outputs.append(output)
             outputs_map[task_cfg.get("title", f"任务{i + 1}")] = output
             emit({"type": "agent_done", "agent": agent_cfg["name"], "output": output})
             self.domain.update("agents", "id", agent_cfg["id"], {"status": "ready"})
 
-            # 3) 写会话消息
+            # 4) 写会话消息
             self.store.add_message(session_id, {
                 "id": f"m{i}-{int(time.time() * 1000)}",
                 "role": "agent", "agent": agent_cfg["name"],
@@ -314,12 +349,27 @@ class CrewRunEngine:
         else:
             result = "协作完成，已生成最终结果：\n" + "\n".join(outputs)
 
-        emit({"type": "crew_done", "result": result, "run_id": run_id})
-        self.store.add_message(session_id, {
+        # ---- CrewOutput 多形态：raw / json_dict / tasks_output ----
+        json_tasks = [t for t in tasks_output if t.get("json_dict") is not None]
+        result_json: Optional[Dict[str, Any]] = None
+        if json_tasks:
+            if len(json_tasks) == 1:
+                result_json = json_tasks[0]["json_dict"]
+            else:
+                result_json = {t["task"]: t["json_dict"] for t in json_tasks}
+
+        emit({"type": "crew_done", "result": result, "run_id": run_id,
+              "outputs": tasks_output, "json_dict": result_json})
+        msg_record = {
             "id": f"m-final-{int(time.time() * 1000)}",
-            "role": "result", "agent": manager_cfg["name"] if (process == "hierarchical" and manager_cfg) else "编排结果",
-            "content": result, "created_at": self._now(),
-        })
+            "role": "result",
+            "agent": manager_cfg["name"] if (process == "hierarchical" and manager_cfg) else "编排结果",
+            "content": result,
+            "output_json": result_json,
+            "tasks_output": tasks_output,
+            "created_at": self._now(),
+        }
+        self.store.add_message(session_id, msg_record)
 
         # 4) 落盘 trace
         self.store.save("traces", {

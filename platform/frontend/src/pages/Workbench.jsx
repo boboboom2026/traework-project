@@ -338,12 +338,7 @@ export default function Workbench({ onNav }) {
 
 function MsgView({ m }) {
   if (m.role === "result") {
-    return (
-      <div className="msg result">
-        <div className="meta">🧾 {m.agent} · 最终结果</div>
-        <div style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.7 }}>{m.content}</div>
-      </div>
-    );
+    return <ResultCard m={m} />;
   }
   const me = m.role === "user";
   return (
@@ -353,6 +348,61 @@ function MsgView({ m }) {
         <div className="meta"><b>{me ? "我" : m.agent}</b></div>
         <div className="bubble">{m.content}</div>
       </div>
+    </div>
+  );
+}
+
+/** 编排结果：CrewOutput 多形态视图（raw / JSON） */
+function ResultCard({ m }) {
+  const tasks = m.tasks_output || [];
+  const hasJson = m.output_json || tasks.some((t) => t.json_dict);
+  const [view, setView] = useState("raw");
+  return (
+    <div className="msg result">
+      <div className="meta" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+        <div>🧾 {m.agent} · 编排结果{hasJson ? "（多形态视图）" : ""}</div>
+        {hasJson && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className={`btn sm ${view === "raw" ? "pri" : "ghost"}`} onClick={() => setView("raw")}>成果文本</button>
+            <button className={`btn sm ${view === "json" ? "pri" : "ghost"}`} onClick={() => setView("json")}>结构化 JSON</button>
+          </div>
+        )}
+      </div>
+      {view === "raw" ? (
+        <div style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.7 }}>{m.content}</div>
+      ) : (
+        <ResultJsonView m={m} />
+      )}
+    </div>
+  );
+}
+
+function ResultJsonView({ m }) {
+  const tasks = m.tasks_output || [];
+  const code = (obj) =>
+    <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", fontSize: 12.5, lineHeight: 1.6, background: "#f6f8fc", border: "1px solid #e4e9f2", borderRadius: 10, padding: 12, margin: "6px 0", maxHeight: 340, overflow: "auto" }}>{JSON.stringify(obj, null, 2)}</pre>;
+  return (
+    <div>
+      {m.output_json && (
+        <>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)", marginBottom: 2 }}>最终结构化输出（json_dict）</div>
+          {code(m.output_json)}
+        </>
+      )}
+      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)", margin: "10px 0 2px" }}>
+        任务级输出（tasks_output · {tasks.length} 项）
+      </div>
+      {tasks.map((t) => (
+        <div key={t.task} style={{ marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+            <b>{t.task}</b><span style={{ color: "var(--muted)" }}>· {t.agent}</span>
+            <span className={`tag ${t.json_dict ? "ok" : t.output_type === "json" ? "danger" : "neutral"}`}>
+              {t.output_type === "json" ? (t.json_dict ? "JSON ✓" : "JSON 解析失败") : "文本"}
+            </span>
+          </div>
+          {t.json_dict ? code(t.json_dict) : <div style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "pre-wrap" }}>{(t.raw || "").slice(0, 240)}{(t.raw || "").length > 240 ? "…" : ""}</div>}
+        </div>
+      ))}
     </div>
   );
 }
