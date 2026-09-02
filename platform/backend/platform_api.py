@@ -18,6 +18,8 @@ from fastapi.responses import StreamingResponse
 from engine import CrewRunEngine
 import llm_client
 import retriever
+import app_runtime
+import app_store
 from platform_store import PlatformStore
 
 DATA_DIR = "data"  # 相对 platform/backend 运行目录
@@ -293,7 +295,9 @@ def run_session(sid: str, payload: Dict[str, Any] = Body(...)):
 def list_approvals():
     rows = _store.all("approvals")
     rows.sort(key=lambda r: r.get("created_at", ""), reverse=True)
-    return {"approvals": rows}
+    tenants = {t["id"]: t.get("name") for t in _store.all("tenants")}
+    views = [{**r, "tenant_name": tenants.get(r.get("tenant_id"), "")} for r in rows]
+    return {"approvals": views}
 
 
 @router.post("/platform/approvals/{approval_id}/decide")
@@ -389,6 +393,112 @@ def search_knowledge(q: str = "", ids: str = "", top_k: int = 3):
     hits = retriever.search_docs(q, qv, docs, top_k=max(1, min(top_k, 10)))
     mode = f"embedding/{prov.get('model')}" if (isinstance(qv, list) and prov) else "local-hash"
     return {"query": q, "total": len(hits), "hits": hits, "embed_mode": mode}
+
+
+# =================== 应用注册表（薄应用托管层 · 阶段 0） ===================
+@router.get("/apps")
+def list_apps():
+    """已注册应用清单（manifest 即注册）。"""
+    apps = []
+    for m in app_runtime.list_apps():
+        caps = []
+        for c in (m.get("capabilities") or []):
+            meta = _engine.tool_meta.get(c, {})
+            caps.append({"name": c, "real": bool(meta.get("real")),
+                         "platform": bool(meta), "category": meta.get("category", "应用自管")})
+        crew_ok = bool(m.get("crew_ref")) and any(c["name"] == m["crew_ref"] for c in _store.all("crews"))
+        flow_ok = bool(m.get("flow_ref")) and any(f.get("name") == m["flow_ref"] for f in _store.all("flows"))
+        apps.append({
+            "app_id": m["app_id"], "name": m.get("name"), "version": m.get("version", "1.0"),
+            "description": m.get("description", ""), "enabled": m.get("enabled", True),
+            "entry": m.get("entry", {}), "endpoints": m.get("endpoints", []),
+            "capabilities": caps, "crew_ref": m.get("crew_ref"),
+            "flow_ref": m.get("flow_ref"), "data_models": m.get("data_models", []),
+            "approval_required": m.get("approval_required", []),
+            "crew_bound": crew_ok, "flow_bound": flow_ok,
+        })
+    return {"apps": apps, "total": len(apps), "errors": app_runtime.load_errors()}
+
+
+# =================== 租户模型 + 应用数据域（阶段 2） ===================
+def _tenant_or_404(tid: str) -> Dict[str, Any]:
+    t = _store.get("tenants", tid)
+    if t is None or t.get("status") != "active":
+        raise HTTPException(404, f"租户不存在或已停用：{tid}")
+    return t
+
+
+def _subscribed_tenant_or_404(app_id: str, tid: str) -> Dict[str, Any]:
+    t = _tenant_or_404(tid)
+    if app_id not in (t.get("apps") or []):
+        raise HTTPException(404, f"租户 {tid} 未订阅应用 {app_id}")
+    return t
+
+
+@router.get("/tenants")
+def list_tenants():
+    return {"tenants": _store.all("tenants")}
+
+
+@router.post("/tenants")
+def create_tenant(payload: Dict[str, Any] = Body(...)):
+    tid = str(payload.get("id") or "").strip()
+    if not app_store.validate_tenant(tid):
+        raise HTTPException(400, "tenant_id 非法：字母/数字/下划线/连字符，最长 64")
+    if _store.get("tenants", tid) is not None:
+        raise HTTPException(409, f"租户已存在：{tid}")
+    rec = {
+        "id": tid,
+        "name": payload.get("name") or tid,
+        "status": payload.get("status") or "active",
+        "apps": payload.get("apps") or [],
+        "created_at": _now(),
+        "note": payload.get("note") or "",
+    }
+    _store.save("tenants", rec)
+    return rec
+
+
+@router.put("/tenants/{tid}")
+def update_tenant(tid: str, payload: Dict[str, Any] = Body(...)):
+    if _store.get("tenants", tid) is None:
+        raise HTTPException(404, "租户不存在")
+    payload = {k: v for k, v in payload.items() if k != "id"}
+    _store.update("tenants", tid, payload)
+    return {"ok": True}
+
+
+@router.delete("/tenants/{tid}")
+def delete_tenant(tid: str):
+    if not _store.delete("tenants", tid):
+        raise HTTPException(404, "租户不存在")
+    return {"ok": True}
+
+
+# 数据域只读/写入（隔离验证入口；能力网关阶段 3 将包装为应用侧 data API）
+@router.get("/app-store/{app_id}/{tenant_id}/{collection}")
+def app_data_list(app_id: str, tenant_id: str, collection: str):
+    _subscribed_tenant_or_404(app_id, tenant_id)
+    if not app_runtime.get_app(app_id):
+        raise HTTPException(404, f"应用未注册：{app_id}")
+    try:
+        rows = app_store.store.list(app_id, tenant_id, collection)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"app_id": app_id, "tenant_id": tenant_id, "collection": collection, "rows": rows}
+
+
+@router.post("/app-store/{app_id}/{tenant_id}/{collection}")
+def app_data_create(app_id: str, tenant_id: str, collection: str,
+                    payload: Dict[str, Any] = Body(...)):
+    _subscribed_tenant_or_404(app_id, tenant_id)
+    if not app_runtime.get_app(app_id):
+        raise HTTPException(404, f"应用未注册：{app_id}")
+    try:
+        rec = app_store.store.create(app_id, tenant_id, collection, payload)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return rec
 
 
 # =================== 流程编排（Flows：事件驱动工作流） ===================

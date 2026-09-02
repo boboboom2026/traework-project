@@ -14,6 +14,15 @@ export default defineConfig({
         target,
         changeOrigin: true,
       },
+      // 应用运行时统一入口（点餐端/商家端）与 SDK 走后端，避免被平台 SPA 接管
+      "/app": {
+        target,
+        changeOrigin: true,
+      },
+      "/app-sdk": {
+        target,
+        changeOrigin: true,
+      },
     },
   },
 });

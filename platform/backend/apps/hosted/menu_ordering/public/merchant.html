@@ -61,18 +61,41 @@
   .toast { position:fixed; left:50%; bottom:40px; transform:translateX(-50%); background:rgba(30,30,30,.92); color:#fff; padding:10px 20px; border-radius:10px; font-size:13px; z-index:99; opacity:0; transition:.25s; pointer-events:none; }
   .toast.show { opacity:1; bottom:56px; }
   .hint-invalid { font-size:11px; color:#ff4d4f; font-weight:600; }
+  .pin-line { display:flex; align-items:center; gap:8px; font-size:12px; }
+  .pin-line input { width:96px; padding:6px 10px; border:1px solid #e5e5e5; border-radius:8px; font-size:13px; outline:none; }
+  .pin-line input:focus { border-color:#2f80ed; }
+  .pin-line .dot { width:8px; height:8px; border-radius:50%; background:#ddd; }
+  .pin-line .dot.on { background:#1a8a4c; }
+  .m-form { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-bottom:14px; align-items:end; }
+  .m-form input { padding:8px 10px; border:1px solid #e5e5e5; border-radius:9px; font-size:13px; outline:none; }
+  .m-form input:focus { border-color:#2f80ed; }
+  .m-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px dashed #f0f0f0; font-size:13px; }
+  .m-row .nm { font-weight:600; }
+  .m-row .meta { color:#999; font-size:12px; }
+  .m-row .ops { display:flex; gap:6px; align-items:center; }
+  .m-ic { border:none; background:#f2f2f0; border-radius:8px; padding:4px 10px; font-size:12px; cursor:pointer; color:#555; }
+  .m-ic.red { background:#ffefee; color:#d93848; }
+  .m-ic:disabled { opacity:.4; cursor:not-allowed; }
 </style>
 </head>
 <body>
 <header>
   <div class="wrap">
     <div class="hd">
-      <div class="brand"><div class="dot">店</div>川渝小馆 · 商家工作台 <span style="font-size:12px;color:#999;font-weight:400">审批 / 订单 / 概览</span></div>
-      <div class="hd-right">数据每 8 秒自动刷新 · <a href="/" style="color:#2f80ed">用户端 ↗</a></div>
+      <div class="brand"><div class="dot">店</div><span id="brandName">川渝小馆</span> · 商家工作台 <span style="font-size:12px;color:#999;font-weight:400">审批 / 订单 / 菜单 / 概览</span></div>
+      <div class="hd-right">
+        <span class="pin-line">
+          <span class="dot" id="pinDot"></span>
+          <input id="pin" type="password" placeholder="商家 PIN" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()">
+          <button class="m-ic" onclick="doLogin()">锁定身份</button>
+        </span>
+        <span id="authState" style="font-size:12px;color:#999">未登录 · 数据每 8 秒自动刷新 · <a href="index.html" style="color:#2f80ed">用户端 ↗</a></span>
+      </div>
     </div>
     <nav>
       <button id="tab-approve" class="active" onclick="switchTab('approve')">审批<span class="cnt" id="cntApprove">0</span></button>
       <button id="tab-orders" onclick="switchTab('orders')">订单<span class="cnt" id="cntOrders">0</span></button>
+      <button id="tab-menu" onclick="switchTab('menu')">菜单<span class="cnt" id="cntMenu">0</span></button>
       <button id="tab-dash" onclick="switchTab('dash')">概览</button>
     </nav>
   </div>
@@ -92,6 +115,18 @@
     <div id="odList"><div class="empty">暂无订单</div></div>
   </section>
 
+  <section id="view-menu" style="display:none">
+    <div class="m-form">
+      <input id="mf-name" placeholder="菜名">
+      <input id="mf-cate" placeholder="分类，如 热菜/主食">
+      <input id="mf-price" type="number" min="0" placeholder="价格">
+      <input id="mf-stock" type="number" min="0" placeholder="库存">
+      <input id="mf-emoji" placeholder="图标 emoji">
+      <button class="btn-next" onclick="addDish()">＋ 上架菜品</button>
+    </div>
+    <div id="menuList"><div class="empty">暂无菜品</div></div>
+  </section>
+
   <section id="view-dash" style="display:none">
     <div class="kpis" id="kpis"></div>
     <div class="card">
@@ -103,7 +138,27 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="/app-sdk/sdk.js"></script>
 <script>
+// ===== 商家身份（PIN 签发，走能力网关） =====
+var authed = false;
+function doLogin() {
+  var pin = ($("pin").value || "").trim();
+  if (!pin) { toast("请输入商家 PIN 后再锁定身份"); return; }
+  AppSDK.setRole("merchant", pin).then(function (ctx) {
+    authed = true;
+    $("pinDot").classList.add("on");
+    $("authState").innerHTML = "已登录 · " + ctx.tenant_name + "（merchant）· 数据每 8 秒自动刷新 · <a href='index.html' style='color:#2f80ed'>用户端 ↗</a>";
+    $("brandName").textContent = ctx.tenant_name;
+    toast("商家身份已锁定");
+    refresh();
+  }).catch(function (e) {
+    authed = false;
+    $("pinDot").classList.remove("on");
+    toast("身份锁定失败：" + e.message);
+  });
+}
+
 // ===== 状态机定义（与线上一致，只前进不可回退） =====
 var ORDER_STEPS = ["已下单", "制作中", "待出餐", "已出餐", "已完成"];
 var NEXT = {
@@ -120,24 +175,8 @@ var $ = function (id) { return document.getElementById(id); };
 function toast(msg) {
   var t = $("toast");
   t.textContent = msg; t.classList.add("show");
-  clearTimeout(t._t); t._t = setTimeout(function () { t.classList.remove("show"); }, 2400);
+  clearTimeout(t._t); t._t = setTimeout(function () { t.classList.remove("show"); }, 2600);
 }
-function api(path, opts) {
-  var headers = { "Content-Type": "application/json", "X-Role": "merchant" };
-  return fetch(path, Object.assign({ headers: headers }, opts || {}))
-    .then(function (r) { return r.json().catch(function () { return {}; }); });
-}
-// 与线上 SDK 对齐的数据更新入口
-var sdk = {
-  data: {
-    update: function (collection, id, patch) {
-      if (collection === "orders") {
-        return api("/api/orders/" + encodeURIComponent(id) + "/status", { method: "POST", body: JSON.stringify(patch) });
-      }
-      return api("/api/approvals/" + id + "/decide", { method: "POST", body: JSON.stringify(patch) });
-    }
-  }
-};
 
 // ===== 审批 args 解析：兼容 Python dict 字符串（单引号）与 JSON =====
 function parseArgs(argsStr) {
@@ -147,13 +186,13 @@ function parseArgs(argsStr) {
   var sm = argsStr.match(/['"]?seat_count['"]?\s*[:=]\s*(\d+)/);
   var ids = [];
   if (dm) {
-    ids = dm[1].split(",").map(function (s) { return s.replace(/[^0-9]/g, ""); })
-                 .filter(Boolean).map(Number);
+    ids = dm[1].split(",").map(function (s) { return s.replace(/['"\s\[\]]/g, ""); })
+                 .filter(Boolean);
   }
   var seat = sm ? parseInt(sm[1], 10) : 1;
   return { dish_ids: ids, seat_count: seat };
 }
-function dishById(id) { for (var i = 0; i < MENU.length; i++) if (MENU[i].id === id) return MENU[i]; return null; }
+function dishById(id) { for (var i = 0; i < MENU.length; i++) if (String(MENU[i].id) === String(id)) return MENU[i]; return null; }
 
 // 生成订单参数的描述：「菜名、菜名 · 共N道 · 合计￥xx · N人」
 // 空参数返回 { invalid: true }
@@ -219,10 +258,10 @@ function renderApprovals() {
   $("apList").innerHTML = html;
 }
 function decide(id, decision) {
-  sdk.data.update("approvals", id, { decision: decision }).then(function () {
-    toast(decision === "approved" ? "已通过，智能体正在执行下单…" : "已拒绝，智能体不执行下单");
+  AppSDK.approvals.decide(id, decision).then(function () {
+    toast(decision === "approved" ? "已通过，正在生成订单…" : "已拒绝，订单不成立");
     refresh();
-  });
+  }).catch(function (e) { toast(e.message); });
 }
 
 // ===== 订单 =====
@@ -245,7 +284,7 @@ function renderOrders() {
   rows.forEach(function (o) {
     var nxt = NEXT[o.status];
     var btn = nxt
-      ? '<button class="btn-next" data-next="' + o.order_no + '" data-to="' + nxt[0] + '">' + nxt[1] + '</button>'
+      ? '<button class="btn-next" data-next="' + o.id + '" data-to="' + nxt[0] + '">' + nxt[1] + '</button>'
       : stBadge("已完成");
     html += '<div class="card"><div class="ord-head"><span class="ord-name">' + o.order_no + '</span>' + stBadge(o.status) + '</div>' +
       '<div class="ord-dishs">' + (o.dish_names || []).join("、") + '</div>' +
@@ -260,11 +299,55 @@ document.addEventListener("click", function (e) {
   var nx = e.target.closest ? e.target.closest("[data-next]") : null;
   if (!nx) return;
   var id = nx.getAttribute("data-next"), to = nx.getAttribute("data-to");
-  sdk.data.update("orders", id, { status: to }).then(function () {
+  AppSDK.data.update("orders", id, { status: to }).then(function () {
     toast("订单状态已更新 → " + to);
     refresh();
-  });
+  }).catch(function (err) { toast(err.message); });
 });
+
+// ===== 菜单管理（商家管菜：上架 / 调库存 / 下架） =====
+function renderMenu() {
+  if (!MENU.length) { $("menuList").innerHTML = '<div class="empty">暂无菜品，先上架几道吧</div>'; return; }
+  var html = MENU.map(function (d) {
+    return '<div class="m-row"><span>' +
+      '<span class="nm">' + (d.emoji || "") + ' ' + d.name + '</span> ' +
+      '<span class="meta">' + (d.category || "") + ' · ￥' + d.price + '</span></span>' +
+      '<span class="ops">' +
+      '<input type="number" min="0" value="' + d.inventory + '" style="width:56px;padding:4px 6px;border:1px solid #eee;border-radius:7px;font-size:12px" id="stk-' + d.id + '">' +
+      '<button class="m-ic" onclick="updStock(\'' + d.id + '\')">调库存</button>' +
+      '<button class="m-ic red" onclick="delDish(\'' + d.id + '\')">下架</button>' +
+      '</span></div>';
+  }).join("");
+  $("menuList").innerHTML = html;
+}
+function addDish() {
+  var rec = {
+    name: ($("mf-name").value || "").trim(),
+    category: ($("mf-cate").value || "").trim() || "热菜",
+    price: parseFloat($("mf-price").value) || 0,
+    inventory: parseInt($("mf-stock").value, 10) || 0,
+    emoji: ($("mf-emoji").value || "🍲").trim(),
+    desc: "商家上架"
+  };
+  if (!rec.name) { toast("请输入菜名"); return; }
+  AppSDK.data.create("menu", rec).then(function () {
+    toast("已上架：" + rec.name);
+    ["mf-name", "mf-cate", "mf-price", "mf-stock", "mf-emoji"].forEach(function (i) { $(i).value = ""; });
+    refresh();
+  }).catch(function (e) { toast(e.message); });
+}
+function updStock(id) {
+  var v = parseInt($("stk-" + id).value, 10);
+  AppSDK.data.update("menu", id, { inventory: v }).then(function () {
+    toast("库存已更新"); refresh();
+  }).catch(function (e) { toast(e.message); });
+}
+function delDish(id) {
+  if (!confirm("确认下架该菜品？")) return;
+  AppSDK.data.remove("menu", id).then(function () {
+    toast("已下架"); refresh();
+  }).catch(function (e) { toast(e.message); });
+}
 
 // ===== 概览 =====
 function renderDash() {
@@ -290,30 +373,33 @@ function renderDash() {
 // ===== 拉取 =====
 function switchTab(t) {
   currentTab = t;
-  ["approve", "orders", "dash"].forEach(function (x) {
+  ["approve", "orders", "menu", "dash"].forEach(function (x) {
     $("tab-" + x).classList.toggle("active", x === t);
     $("view-" + x).style.display = x === t ? "" : "none";
   });
   if (t === "orders") { renderOrderFilters(); renderOrders(); }
+  if (t === "menu") renderMenu();
   if (t === "dash") renderDash();
 }
+
 function refresh() {
-  api("/api/menu").then(function (r) {
-    MENU = r.menu || [];
-    if (currentTab === "approve") renderApprovals();
-    if (currentTab === "dash") renderDash();
-  });
-  api("/api/approvals").then(function (r) {
-    APPROVALS = r.approvals || [];
+  if (!authed) return; // 未锁定商家身份前不拉取
+  Promise.all([
+    AppSDK.data.list("menu"),
+    AppSDK.approvals.list(),
+    AppSDK.data.list("orders"),
+  ]).then(function (rs) {
+    MENU = rs[0].rows || [];
+    APPROVALS = rs[1].approvals || [];
+    ORDERS = rs[2].rows || [];
     $("cntApprove").textContent = APPROVALS.filter(function (a) { return a.status === "pending"; }).length;
-    if (currentTab === "approve") renderApprovals();
-  });
-  api("/api/orders").then(function (r) {
-    ORDERS = r.orders || [];
     $("cntOrders").textContent = ORDERS.length;
+    $("cntMenu").textContent = MENU.length;
+    if (currentTab === "approve") renderApprovals();
+    if (currentTab === "menu") renderMenu();
     if (currentTab === "orders") { renderOrderFilters(); renderOrders(); }
     if (currentTab === "dash") renderDash();
-  });
+  }).catch(function (e) { toast(e.message); });
 }
 
 // 每 8 秒自动轮询（审批 + 订单 + 概览随之刷新）

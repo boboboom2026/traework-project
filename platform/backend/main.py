@@ -3,6 +3,7 @@
 
 路由布局：
     /api/*            底座 + 应用 API（menu / orders / approvals / stats / platform/info）
+    /app/{app}/{tenant}  统一入口：应用运行时静态托管 / 远端分发（阶段 1 + 租户校验 阶段 2）
     /                 用户端（点餐系统 public/index.html）
     /merchant.html    商家端（审批 + 订单管理）
     /platform/manage.html  CrewAI 管理页（底座 UI）
@@ -11,13 +12,17 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from apps.hosted.menu_ordering.app import HostedApp
 from apps.hosted import list_apps
-from platform_api import router as platform_router
+import app_runtime
+import app_store
+from platform_api import router as platform_router, _store
+from app_gateway import router as gateway_router
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -40,6 +45,7 @@ app.include_router(hosted_app.build_router())
 
 # ---------- 装配协作办公平台 API ----------
 app.include_router(platform_router)
+app.include_router(gateway_router)
 
 
 @app.get("/api/platform/apps")
@@ -48,9 +54,75 @@ def platform_apps():
     return {"apps": list_apps()}
 
 
+# ================= 统一入口（应用运行时 · 阶段 1） =================
+def _manifest_or_404(app_id: str):
+    m = app_runtime.get_app(app_id)
+    if not m or not m.get("enabled", True):
+        raise HTTPException(status_code=404, detail=f"应用不存在或未启用：{app_id}")
+    return m
+
+
+def _static_root(manifest) -> str:
+    """manifest entry.static_dir（相对 backend 目录）解析为绝对路径。"""
+    rel = (manifest.get("entry") or {}).get("static_dir")
+    if not rel:
+        raise HTTPException(status_code=404, detail=f"应用 {manifest['app_id']} 未声明 static_dir")
+    root = os.path.normpath(os.path.join(BASE_DIR, rel))
+    if not os.path.isdir(root):
+        raise HTTPException(status_code=404, detail=f"应用 {manifest['app_id']} 静态目录不存在：{root}")
+    return root
+
+
+def _redirect_to_remote(manifest, tenant_id: str, suffix: str = "") -> RedirectResponse:
+    base = (manifest.get("entry") or {}).get("url", "").rstrip("/")
+    sep = "&" if "?" in base else "?"
+    return RedirectResponse(f"{base}{suffix}{sep}tenant={tenant_id}")
+
+
+def _require_tenant(app_id: str, tenant_id: str) -> None:
+    """阶段 2：租户必须已注册、启用且订阅该应用，否则视为入口失效。"""
+    if not app_store.validate_tenant(tenant_id):
+        raise HTTPException(status_code=400, detail="tenant_id 格式非法")
+    tid = _store.get("tenants", tenant_id)
+    if tid is None or tid.get("status") != "active":
+        raise HTTPException(status_code=404, detail=f"租户不存在或已停用：{tenant_id}")
+    if app_id not in (tid.get("apps") or []):
+        raise HTTPException(status_code=404, detail=f"租户 {tenant_id} 未订阅应用 {app_id}")
+
+
+@app.get("/app/{app_id}/{tenant_id}")
+def app_home(app_id: str, tenant_id: str):
+    """统一入口首页：static 返回 index.html；remote 302 到远端并带 tenant 参数。"""
+    _require_tenant(app_id, tenant_id)
+    m = _manifest_or_404(app_id)
+    if (m.get("entry") or {}).get("type") == "remote":
+        return _redirect_to_remote(m, tenant_id)
+    return FileResponse(os.path.join(_static_root(m), "index.html"))
+
+
+@app.get("/app/{app_id}/{tenant_id}/{path:path}")
+def app_static(app_id: str, tenant_id: str, path: str):
+    """统一入口静态资源：/app/{app}/{tenant}/index.html、merchant.html、css/js 等。"""
+    _require_tenant(app_id, tenant_id)
+    m = _manifest_or_404(app_id)
+    if (m.get("entry") or {}).get("type") == "remote":
+        return _redirect_to_remote(m, tenant_id, "/" + path)
+    root = _static_root(m)
+    rel = path.replace("\\", "/")
+    if rel.startswith("/") or ".." in rel.split("/"):
+        raise HTTPException(status_code=403, detail="非法路径")
+    full = os.path.normpath(os.path.join(root, *rel.split("/")))
+    if not full.startswith(root) or not os.path.isfile(full):
+        raise HTTPException(status_code=404, detail="资源不存在")
+    return FileResponse(full)
+
+
 # ---------- 底座 UI：管理页 ----------
 platform_public = os.path.join(BASE_DIR, "public")
 app.mount("/platform", StaticFiles(directory=platform_public, html=True), name="platform")
+
+# ---------- 应用 SDK：任意 H5 直引 /app-sdk/sdk.js ----------
+app.mount("/app-sdk", StaticFiles(directory=os.path.join(BASE_DIR, "public", "apps")), name="app-sdk")
 
 # ---------- 托管应用前端：用户端 / 商家端 ----------
 app.mount("/", StaticFiles(directory=hosted_app.public_dir, html=True), name="apps")

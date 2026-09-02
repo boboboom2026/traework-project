@@ -31,6 +31,7 @@ class PlatformStore:
         d.set_seed("memory", [])
         d.set_seed("flows", [])
         d.set_seed("approvals", [])
+        d.set_seed("tenants", SEED_TENANTS)
 
     # ---------- 通用 ----------
     def all(self, coll: str) -> List[Dict[str, Any]]:
@@ -141,6 +142,20 @@ SEED_CREWS = [
              "description": "汇总调研与分析结论，撰写结构完整的分析报告",
              "expected_output": "《目标课题分析报告》完整初稿"},
         ],
+    },
+]
+
+# 租户：同一应用服务多个客户；每个租户独立数据域（AppStore），停用即入口失效
+SEED_TENANTS = [
+    {
+        "id": "demo-store", "name": "示例餐厅", "status": "active",
+        "apps": ["menu-ordering"], "created_at": "2026-09-02 09:00:00",
+        "note": "种子演示租户：菜单/订单/审批独立数据域",
+    },
+    {
+        "id": "sichuan-garden", "name": "川庭小馆", "status": "active",
+        "apps": ["menu-ordering"], "created_at": "2026-09-02 09:00:00",
+        "note": "种子演示租户：用于验证两租户数据互不可见",
     },
 ]
 

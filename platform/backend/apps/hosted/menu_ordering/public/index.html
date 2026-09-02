@@ -61,6 +61,12 @@
   .b-已出餐 { background:#e6f7ff; color:#0899c4; }
   .b-已完成 { background:#e8f7ee; color:#1a8a4c; }
   .b-pending { background:#fff4e6; color:#e88406; }
+  .ai-line { display:flex; gap:8px; margin-bottom:12px; }
+  .ai-line input { flex:1; padding:8px 10px; border:1px solid #e5e5e5; border-radius:10px; font-size:13px; outline:none; }
+  .ai-line input:focus { border-color:#ff7a45; }
+  .btn-ai { padding:8px 12px; border:none; border-radius:10px; background:#fff4ef; color:#ff7a45; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  .btn-ai:disabled { opacity:.45; cursor:not-allowed; }
+  .ai-out { background:#fff8f5; border:1px solid #ffe3d6; border-radius:12px; padding:10px 12px; font-size:12.5px; line-height:1.8; color:#8c4a2e; margin-bottom:12px; display:none; white-space:pre-line; }
   @media (max-width:860px){ main { grid-template-columns:1fr; } .cart { position:static; } }
 </style>
 </head>
@@ -83,6 +89,11 @@
     <section class="cards" id="menuCards"></section>
     <aside class="cart">
       <h2>我的点单 <span id="cartCount" style="color:#999;font-weight:400;font-size:12px"></span></h2>
+      <div class="ai-line">
+        <input id="pref" placeholder="偏好/预算，如：偏辣、150元内" onkeydown="if(event.key==='Enter')recommend()">
+        <button class="btn-ai" id="btnAI" onclick="recommend()">🧠 智能推荐</button>
+      </div>
+      <div class="ai-out" id="aiOut"></div>
       <div id="cartItems"><div class="empty">还没有选择菜品</div></div>
       <div class="seat">🪑 用餐人数
         <input id="seatCount" type="number" min="1" max="20" value="2">
@@ -95,13 +106,14 @@
   </main>
 
   <section class="orders">
-    <h2>我的订单</h2>
+    <h2>我的订单 <button class="btn-ai" style="float:right;padding:4px 10px;font-size:12px" onclick="notifyMe()">🔔 出餐通知</button></h2>
     <div id="orderList"><div class="ord" style="justify-content:center;color:#bbb">暂无订单</div></div>
   </section>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<script src="/app-sdk/sdk.js"></script>
 <script>
 var MENU = [];
 var cart = {};          // dish_id -> qty
@@ -113,12 +125,32 @@ var $ = function (id) { return document.getElementById(id); };
 function toast(msg) {
   var t = $("toast");
   t.textContent = msg; t.classList.add("show");
-  clearTimeout(t._t); t._t = setTimeout(function () { t.classList.remove("show"); }, 2400);
+  clearTimeout(t._t); t._t = setTimeout(function () { t.classList.remove("show"); }, 2600);
 }
 
-function api(path, opts) {
-  return fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts || {}))
-    .then(function (r) { return r.json().catch(function () { return {}; }); });
+// ---------- 智能推荐（runFlow 步1 · 开启新会话） ----------
+function recommend() {
+  var pref = ($("pref").value || "").trim();
+  var btn = $("btnAI"); btn.disabled = true;
+  AppSDK.runFlow(pref || "帮我推荐几道菜", { restart: true }).then(function (res) {
+    btn.disabled = false;
+    var out = $("aiOut"); out.style.display = "block";
+    out.textContent = res.output;
+  }).catch(function (e) { btn.disabled = false; toast(e.message); });
+}
+
+// ---------- 出餐通知（runFlow 步3，流程进行到下单步后可用） ----------
+function notifyMe() {
+  AppSDK.flowStatus().then(function (s) {
+    if (!s || s.status === "已完成" || (s.current || 0) < 2) {
+      toast("暂无进行中的订单可通知（请先下单）");
+      return;
+    }
+    return AppSDK.runFlow("").then(function (res) {
+      var out = $("aiOut"); out.style.display = "block"; out.textContent = res.output;
+      toast("已生成出餐通知");
+    });
+  }).catch(function (e) { toast(e.message); });
 }
 
 // ---------- 菜单 ----------
@@ -176,27 +208,35 @@ function expandIds() {
 function placeOrder() {
   if ($("btnPlace").disabled) return;
   var seat = parseInt($("seatCount").value, 10) || 1;
+  var pref = ($("pref").value || "").trim();
   $("btnPlace").disabled = true; $("btnPlace").textContent = "订单已提交，等待商家确认…";
   toast("订单已提交，等待商家确认…（审批通过后自动出现在订单列表）");
-  api("/api/orders/place", { method: "POST", body: JSON.stringify({ dish_ids: expandIds(), seat_count: seat }) })
-    .then(function (res) {
-      // 后端返回 pending 即进入审批队列；开启轮询等待结果
-      refreshOrders();
-      if (!polling) { setInterval(refreshOrders, 4000); polling = true; }
-      setTimeout(function () {
-        if (!$("btnPlace").disabled) return;
-        $("btnPlace").textContent = "重新提交";
-        $("btnPlace").disabled = false; // 若超时仍可再下
-      }, 3000);
-    });
+  var payload = JSON.stringify({ dish_ids: expandIds(), seat_count: seat, note: pref });
+  // 每次点餐 = 一条完整流程：推荐（步1）→ 下单（步2），restart 开启新会话
+  AppSDK.runFlow(pref || "帮我推荐几道菜", { restart: true }).then(function (r) {
+    var out = $("aiOut"); out.style.display = "block"; out.textContent = r.output;
+    return AppSDK.runFlow(payload);
+  }).then(function (res) {
+    toast((res.output || "已提交").substring(0, 60));
+    refreshOrders();
+    if (!polling) { setInterval(refreshOrders, 4000); polling = true; }
+    setTimeout(function () {
+      if (!$("btnPlace").disabled) return;
+      $("btnPlace").textContent = "重新提交";
+      $("btnPlace").disabled = false; // 若超时仍可再下
+    }, 3000);
+  }).catch(function (e) {
+    toast(e.message);
+    $("btnPlace").textContent = "重新提交";
+    $("btnPlace").disabled = false;
+  });
 }
 
-// ---------- 订单轮询（每 4s） ----------
+// ---------- 订单轮询（每 4s，走租户数据域） ----------
 function fmt(t) { return t ? t.substring(0, 16) : ""; }
 function refreshOrders() {
-  api("/api/orders").then(function (res) {
-    var rows = (res.orders || []).slice(0, 20);
-    if (!rows.length) return;
+  AppSDK.data.list("orders").then(function (res) {
+    var rows = (res.rows || []).slice(0, 20);
     myOrders = rows;
     var html = "";
     rows.forEach(function (o) {
@@ -205,15 +245,19 @@ function refreshOrders() {
         ' · ' + (o.seat_count || 1) + '人 · 合计 ￥' + o.total + '</div></div>' +
         '<span class="badge b-' + o.status + '">' + o.status + '</span></div>';
     });
-    $("orderList").innerHTML = html;
-  });
+    $("orderList").innerHTML = html || '<div class="ord" style="justify-content:center;color:#bbb">暂无订单</div>';
+  }).catch(function () {});
 }
 
 // ---------- 初始化 ----------
-api("/api/menu").then(function (res) {
-  MENU = res.menu || [];
+AppSDK.getContext().then(function (ctx) {
+  var h = document.querySelector(".brand small");
+  if (h) h.textContent = ctx.tenant_name + " · 多智能体 CrewAI 底座驱动的点餐应用（menu-ordering v2.0）";
+  return AppSDK.data.list("menu");
+}).then(function (res) {
+  MENU = res.rows || [];
   renderMenu(); renderCart();
-});
+}).catch(function () {});
 refreshOrders();
 setInterval(refreshOrders, 4000);
 </script>

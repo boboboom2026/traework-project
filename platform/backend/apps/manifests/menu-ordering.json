@@ -1,0 +1,24 @@
+{
+  "app_id": "menu-ordering",
+  "name": "智能点餐",
+  "version": "1.0.0",
+  "enabled": true,
+  "description": "企业点餐应用：智能推荐、下单（审批）、出餐全流程（Flows 承载业务）。",
+  "entry": {
+    "type": "static",
+    "url": "/app/menu-ordering",
+    "static_dir": "apps/hosted/menu_ordering/public"
+  },
+  "endpoints": [
+    { "id": "user", "title": "顾客端", "route": "index.html" },
+    { "id": "merchant", "title": "商家端", "route": "merchant.html" }
+  ],
+  "capabilities": [
+    "web_search", "calc", "python_exec", "now",
+    "menu_search", "recommendation", "inventory_check", "order_process", "feedback_analysis"
+  ],
+  "crew_ref": null,
+  "flow_ref": "点餐业务流",
+  "data_models": ["menu", "orders"],
+  "approval_required": ["order_process"]
+}

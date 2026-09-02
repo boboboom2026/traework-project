@@ -1,0 +1,1364 @@
+先给结论：**没必要做“应用中心”——准确说，没必要做“市场形态”的应用中心；你真正需要的是一个很薄的“多租户应用运行时”，而且它其实已经被你的底座覆盖了大半。**
+
+下面是理由，分三层：
+
+## 理由一：市场机制的三项价值，在纯内部场景全部失效
+
+| 市场机制 | 它解决什么问题 | 内部场景下 |
+|---|---|---|
+| **发现/浏览** | 让不确定的人找到应用 | 失效——客户是“指定的”：某餐厅就是来用点餐，直接给链接即可 |
+| **审核/上架** | 建立对外部开发者的信任 | 失效——内部团队自己开发自己交付，没有信任问题需要市场来背书 |
+| **生态激励** | 排行、分成、激励第三方供给 | 失效——没有第三方，没有供给生态 |
+
+这三项恰好是“应用中心 UI”（市场页、上架流程、审核工作流、应用详情页）存在的全部理由。它们消失，“中心”就只剩一个空壳界面。
+
+## 理由二：你的真成本不在“中心”，在“多租户”
+
+“做各种应用给**不同客户**用”这句话里，真正困难的是后半句：同一应用要服务多个客户，就得有**租户隔离**——
+
+- 客户 A 的点餐应用数据不能进客户 B 的视图
+- 每个客户有自己独立的配置、团队成员、审批规则
+- 一个应用升级，所有客户同时生效，但不能破坏各自数据
+
+这部分成本**不叫“应用中心”也照样要付**，它是底座能力（RBAC、数据域、审批复用）的增量，不是市场页面的增量。把预算花在“市场 UI”上，等于把多租户的钱挪去给一个没有访客的市场装修。
+
+## 理由三：剩下值得做的，其实是一个“薄壳”，三件小东西
+
+1. **应用注册表**（manifest）——让底座认识“这个应用有哪些端、绑哪个编排、声明哪些能力”，本质是配置，不是 UI。
+2. **统一入口路由**——`/app/<应用>/<客户>`，客户拿一个 URL 就能到自己的应用，这是“怎么分发”的最小件。
+3. **能力网关 + SDK**——应用拿身份、调审批/编排/数据域。注意：**这本来就是底座能力**，只是加一层给应用用的入口。
+
+它们加起来是“运行时/托管”，不是“中心”。
+
+## 取舍一览
+
+
+用户的关键变化：不再考虑外部开发者，全部是"内部团队基于当前多智能体+任务编排底座，做各种应用给不同客户使用"。用户问：按照这个前提，还要不要做"应用中心"？如果觉得没必要做应用中心，请给理由。（探讨，不写代码）
+
+这是一个架构咨询问题，用户希望我认真思考：内部自用、底下一套、做多个应用给不同客户，是否需要"应用中心"？
+
+我需要先思考清楚"应用中心"在他们场景下承担什么、哪些价值在"内部使用、单一底座"前提下会消失/弱化，哪些仍然保留。然后给出诚实结论。
+
+关键分析：
+
+应用中心本质解决的是"多应用、多方参与"的问题：
+1. 应用发现与上架（给谁发现？）——内部场景：没有外部开发者要上架，应用是内部做的，数量可控（几个到十几个），完全可以用后台管理页代替"市场"。
+2. 应用入口分发（/app/:id）——这个仍然需要一点，因为不同的客户（客户A 点餐、客户B 点餐）需要有不同的访问入口。但这里关键是"客户分区"，不是"应用市场"。
+3. 多租户与数据隔离（商家×客户）——这个是最核心的，无论做不做"应用中心"都要做！因为"给不同客户使用"必然要求数据隔离、权限隔离。
+4. 应用生命周期（版本、上架下架）——内部团队、少应用，Git 发版即可，不需要市场化的版本治理。
+5. 能力网关（身份、审批复用）——这个必须要，但它是"平台底座能力"，不是"应用中心"专属。
+
+所以结论倾向：**"应用中心"这个壳（市场、上架、审核、发现页）在纯内部场景下是过度设计；真正需要的是"多租户多应用运行时"——即 app runtime + 租户隔离 + 统一入口**。也就是说名字可以叫"应用中心"但内容不是"市场"，而是"多应用托管运行时 + 客户分区"。
+
+也可以换个角度：为什么人们常做"应用中心"？——因为想让外部开发者也来丰富生态。既然排除外部开发者，市场机制（审核、上架、分成、生态激励）全部失效。剩下的是：
+- 统一入口（一个 URL 打开任意应用）——价值仍在，但实现极轻（一个路由表）
+- 应用注册（manifest）——价值仍在，且很轻（一个 JSON）
+- 租户/客户管理——必须做，但这是"多客户系统"，不是"应用中心"
+- 版本管理——内部可以直接 git
+- 能力网关——必须做，属于底座
+
+真正要警惕的：把"应用中心"做成 heavyweight 模块的冲动——管理员后台、上架流程、应用市场页面、审核工作流。这些在内部场景都是死代码。
+
+那有没有必要做一个非常薄的"应用中心"？——有的，但应该叫"应用壳/应用运行时"，它提供：
+1. 应用清单注册
+2. /app/:appId 统一入口 + 客户（租户）路由
+3. 能力 SDK（身份、审批、编排调用）
+4. 每个应用的数据域注册
+
+给用户的建议：
+- 不需要"市场制"应用中心（无发现/审核/生态价值）
+- 需要一个"轻量应用运行时/壳"（应用注册 + 统一入口 + 租户隔离 + 能力复用）——但这一层薄到几乎不叫"中心"
+- 一句话：把预算从"应用中心"挪到"多租户底座"
+
+理由要非常具体：
+1. 发现价值消失：用户都是"指定客户"（如某餐厅），不是来逛应用市场的，直接给链接
+2. 审核/上架价值消失：内部团队自己提交自己用，没有信任问题
+3. 生态激励价值不存在：没有第三方
+4. 版本/发布：Git + CI 已覆盖
+5. 但客户隔离不可省：不同客户 = 不同数据域、不同授权——这是真正的成本所在
+
+我可以用一个比较/分析型可视化来呈现："应用中心功能 × 内部场景的取舍"。或者给一个简单的矩阵：中心的功能点，每项在内部场景下"留/轻量/砍"。这个很适合用 compact-table-visual 或直接 markdown 表格。
+
+考虑到用户说"探讨"，我应该给出清晰的判断 + 理由 + 替代方案，并最好用可视化展示"哪些功能砍、哪些留"。用 markdown 表格其实足够清晰，但前面几轮我都在用 widget，这里也可以用一个小 widget 展示"留/砍"矩阵。不过要避免过度。一个 compact 的决策表 widget 或 markdown 表都可以。我倾向用 markdown 表格 + 简洁文字，因为这是探讨类回答，重点是论证而不是视觉。但 dynamic-ui 指南说对比类可用可视化。用户之前接受图。我可以用一个简单的三色表（留/轻量/砍）widget。不过要注意：这不是"哪个更好"的对比投票，是"需求 vs 功能"映射，表格更精确。我给 markdown 表格 + 可能一个小图。
+
+其实我可以做一个很合适的 vis：以"应用中心功能清单"为行，标注在内部场景的处理：✅保留（薄壳）/ ➖降级为配置 / ❌砍掉。用 compact 列表/表格样式。但 emoji 不要用……规则说除非用户要求不要用 emoji。用文字标记：关键/轻量/砍掉。
+
+我觉得直接 Markdown 表格就足够清晰，且用户明确说"探讨"，重点是论证推理。也许配一个小的"分层"图提价值不高。我给文字为主 + 一个表格。为把这个"从市场到运行时"的重心转移说清楚，最后给一个精简的结论图也许好——但控制篇幅，我可以用一个 compact 的 SVG（薄应用运行时三层：应用清单/统一入口/租户隔离）… 有一定价值。
+
+我决定：主要用文字论证 + 一个"功能取舍"表格（markdown），最后给出"薄运行时"的定义结构。如果再加图会冗余，跳过 widget 或只做一个简单的。之前几个回复都用了 widget，这轮纯探讨，我用文字+表格，若确有可视化价值再加。
+
+嗯，重新考虑：dynamic-ui 说明"proactive triggers"包括框架/架构类讨论，可视帮助理解。但"评估要不要做X"更偏决策分析。做一个小 widget 展示"应用中心职责拆解 → 内部场景取舍"，用列表 + 状态标记，会有助。我用 HTML 做一个紧凑表或列表，三列状态（保留为运行时/弱化为配置/砍掉）。这好过满屏文字。
+
+但也别过度。我先想内容，再决定。内容：
+
+**结论：不必做"应用中心"（市场形态），但需要一个薄的"应用运行时"（壳）。理由分三层：**
+
+1. 市场机制的价值全部消失
+   - 发现市场：内部应用是点对点交付给指定客户（某餐厅），客户不需要逛市场
+   - 审核/上架：内部团队自己开发自己交付，无信任问题
+   - 生态激励：无第三方，无分成/排行/激励
+   - 版本治理：Git/CI 已覆盖，无需中心级发布流程
+   
+2. 真正的成本不在"中心"，在"多租户"
+   - "给不同客户使用"意味着：同一应用、多个租户、数据隔离、权限差异、客户专属配置
+   - 这部分无论叫不叫"应用中心"都得做
+   
+3. 那"应用中心"能保留下来的本质，其实是一个薄壳，三项：
+   - 应用注册（manifest）：一个 JSON，让底座识别"这个应用包含哪些端、哪些能力、绑哪个编排"
+   - 统一入口：/app/:appId(/:tenantId)，让客户拿一个 URL
+   - 能力网关/SDK：身份、审批、编排调用复用（这是底座能力，不是中心能力）
+   
+所以建议：跳过"应用中心"这一层叫法和市场功能，直接做"多租户应用运行时"：
+- 底座增加：app 注册表（轻）、租户模型（客户）、入口路由、数据域隔离
+- 每个应用 = 它的前端 H5 + 自己的编排组合 + 工具，接入底座
+
+命名建议：如果一定要有个名字，叫"应用托管/运行时"而不是"应用中心"，避免引导做出市场 UI。
+
+再给一个判断原则：**"中心"这个词暗示"市场/发现/生态"，你都没有 → 不做中心 UI；"运行时"这个词暗示"隔离/接入/复用"，你都要 → 做运行时。**
+
+我组织回答：先给结论一句话，然后三层理由，然后"薄运行时包含什么"，附决策表格，最后给一个重启的验证点（当什么出现时才需要真做市场——外部开发者进场、应用量爆炸、客户自助开通需求）。
+
+要不要 widget？做一个 2 栏或 3 栏的"保留/弱化/砍掉"卡片或表格。用 widget 可以更直观：三列分组，列出功能项。我用一个简单 HTML 分组列表（三个分组标题 + 项），用 c-brand 标记"保留"，中性"弱化"，划线/灰"砍掉"。挺合适，也是一个决策类 primitives。做吧，但保持紧凑。
+
+其实按照 comparison-and-decision 场景，这是"是否要做的决策"，用 decision-cards 也可以：三个选项（做市场型中心 / 做薄运行时 / 什么都不做）→ 推荐薄运行时。这比"功能取舍表"更能回答"哪个更好"。但用户问的是"要不要做中心"，决策卡贴合：三个选项 + 推荐。不过我做过的都够多了。权衡：一个"功能取舍"可视化比决策卡更有信息增量（展示哪些砍）。我选择做"功能取舍"分组卡片，紧凑。
+
+嗯，为了不过度，我看内容密度：5-6 个功能项，三个分组。用 HTML 列表分组即可，不用 SVG。
+
+最终回复结构：
+1. 一句话结论
+2. 理由（3 点，简短）
+3. 视觉：取舍分组
+4. 薄运行时 = 3 件套（列表）
+5. 何时才该做真市场（触发条件）
+6. 结尾问下一步（要不要把薄运行时列为底座演进条目）
+
+语言：中文。不写代码。
+
+图中三列的含义：
+
+- **保留**：这些本来就是你底座的一部分或很薄的增量，必须做，但都不需要"市场"UI——manifest 是配置、入口是路由、网关是复用、租户隔离是必然。
+- **弱化**：纯配置或沿用现有后台/Git，不专门做功能。
+- **砍掉**：全部是"面向外部供给者"的功能，内部场景零受众。
+
+## 一句话判断标准
+
+> **"中心"这个词暗示"有人来逛"——你没有访客；"运行时"这个词暗示"接入、隔离、复用"——你全都需要。** 所以做运行时，不做中心。
+
+如果一定要沿用一个名字，建议叫**"应用托管层"或"应用运行时"**，避免团队按"市场"去设计 UI 和流程。
+
+## 什么情况才值得回头做真"应用中心"
+
+三个触发条件，出现任何一个再考虑市场形态：
+
+1. **出现不归你管的第三方开发者**要求自己上架应用（届时他们才需要发现页和审核）。
+2. **应用数量大到内部都记不住**（几十个起），需要目录式浏览。
+3. **客户要自助开通、自助查看应用**（而非由你后台分配）。
+
+在这之前，把"应用中心"的预算全部让给一件事：**多租户隔离做得干净**——这是你"做各种应用给不同客户"这个目标里唯一的真成本。
+
+话题收一下：如果你认可以上判断，下一步我可以把这套"薄应用托管层"收敛成可落地的底座演进清单（含 manifest 最小字段、租户模型与数据域的接入点），仍只出方案不写码。
+
+用户要求：按"薄应用托管层"方案，生成底座演进清单。只出方案不写码（用户前面说"探讨，先不要动代码"，现在说"生成底座演进清单"——这仍然是方案产出，不是代码修改）。
+
+所以我要产出的是一个落地底座演进清单，包含：
+1. manifest 最小字段（应用注册）
+2. 租户模型与数据域的接入点
+3. 统一入口路由
+4. 能力网关 + SDK
+5. 各阶段的实施顺序
+
+我应该把它组织成一个清晰的演进清单。这是方案文档，用户说"探讨先不动码"，所以我直接输出方案即可，不需要写入文件（因为用户没说创建文件，NEVER create files unless necessary —— 方案可以直接在对话里给出。不过"清单"这种交付物，用户可能希望保存成文件？用户没有明确要求文件。谨慎起见，直接在对话中输出清单，并问是否需要落盘成文档）。
+
+考虑是否用一个 widget 展示？这个清单本质是一个结构化文档（分阶段、多层级），Markdown 表格/列表更清晰，widget 反而不如文本。前面已经用了多个 widget，这次内容密度高、是交付物清单，用 Markdown 更合适。不强制可视化。
+
+组织演进清单：
+
+目标：薄应用托管层（App Runtime Layer），多阶段演进。
+
+阶段划分（按依赖顺序）：
+
+**阶段 0：应用注册与清单（manifest）**
+- 最小字段
+- 加载器与校验
+- 与现有 tools_registry 的关系
+
+**阶段 1：统一入口与路由**
+- /app/:appId/:tenantId
+- 静态托管 or 独立部署 + 代理
+- 入口鉴权
+
+**阶段 2：租户模型与数据域**
+- 租户 = 客户（企业/门店）
+- 数据域键：app_id + tenant_id
+- 接入点：store 底层、审批、审计
+
+**阶段 3：能力网关 + SDK**
+- 身份注入（角色：平台管理员/商家/顾客）
+- 能力端点：编排运行、审批提交/决策、数据域读写
+- SDK 形态：JS（前端）+ Python（后端）
+
+**阶段 4：智能点餐应用接入（第一个租户应用）**
+- 用户端 H5 + 商家端 H5
+- 复用现有 crew "智能点餐" + 工具
+- 下单走审批
+
+**阶段 5（可选/触发式）：市场化管理**
+- 三个触发条件出现时才做
+
+每个阶段给：目标、要交付的东西（组件）、验收标准、依赖哪些现有模块。
+
+另外要指出与现有系统的具体接入点：
+- crew_engine.py 的 register_tool / _TOOL_CLASSES → manifest 的 capabilities 映射
+- store.py（数据存储）→ 租户数据域
+- approval.py → 租户级审批规则
+- main.py 的 _PUBLIC_PATHS / auth → 应用网关鉴权
+- RBAC（Governance）→ 三角色
+
+还要考虑几个设计决策点需要用户确认？也许在清单里标注"待确认项"，而不是用 AskUserQuestion（用户就是要清单）。
+
+输出结构：
+1. 演进总览（5 个阶段，一行一句）
+2. 每阶段详细清单（目标/交付物/验收/依赖）
+3. 与现有模块的接入点总表
+4. 关键设计决策点（留待确认）
+
+保持精简但完整。中文。
+
+关于是否落盘：用户说"生成底座演进清单"，通常是文本交付。我在对话给出，结尾问是否需要存为文档。不用 NotifyUser（那是 plan/spec 模式用的）。这个其实有点像写一份 spec，但用户没要求文件，直接在对话中给。
+
+写吧。控制篇幅，表格为主。
+按"薄应用托管层"收敛后的底座演进清单如下。整体分 5 个阶段，前 4 阶段是"运行时"本体，第 5 阶段是触发式选项。
+
+---
+
+## 演进总览
+
+```
+阶段0 应用清单 → 阶段1 统一入口 → 阶段2 租户与数据域 → 阶段3 能力网关+SDK → 阶段4 首个应用接入
+                    └──────── 全部完成后，进入迭代期 ────────┘
+阶段5（触发式）市场化管理 —— 仅当出现第三方/应用爆炸/自助开通时才启动
+```
+
+---
+
+## 阶段 0：应用清单（manifest）与加载器
+
+**目标**：让底座像认识"工具"一样认识"整个应用"。
+
+**交付物**
+
+| 组件 | 内容 | 接入点 |
+|---|---|---|
+| `app-manifest.json` 最小字段 | `app_id`、`name`、`version`、`entry.url`、`endpoints[]`（用户端/商家端）、`capabilities[]`（工具映射）、`crew_ref`（绑定的编排）、`data_models[]`（数据域声明） | 语义对齐现有 `tools_registry.json` |
+| 清单加载器 | 启动时扫描 `plugins/` 与可配置目录，加载并校验 manifest，失败不阻断启动 | 对齐 `crew_engine._load_registered_tools()` |
+| 清单校验 | 必填字段、ID 唯一、capability 名在工具目录中存在 | 复用现有工具解析 |
+
+**验收**：新增一个空壳应用（hello 页 + 最小 manifest），系统启动后能在内部清单中查到它，且不报错。
+
+**依赖**：现有工具注册机制（已有）。
+
+---
+
+## 阶段 1：统一入口与路由
+
+**目标**：`/app/<app_id>/<tenant_id>` 一个 URL 打开客户的应用。
+
+**交付物**
+
+| 组件 | 内容 |
+|---|---|
+| 入口路由 | 后端新增 `/app/{app_id}/{tenant_id}` 白名单分发；未注册应用返回 404 |
+| 托管方式（二选一并存） | 静态产物托管（应用 H5 构建进平台目录）或独立部署 + 反向代理（`entry.url` 即外链） |
+| 入口鉴权 | 顾客/商家两种身份的分发；未登录可访问用户端（游客可看菜单），商家端必须登录 |
+| 公开路径调整 | `/app/*` 不进后台 `_PUBLIC_PATHS`，走独立的应用网关鉴权 |
+
+**验收**：浏览器直开 `/app/menu-ordering/<tenant>`，落到对应用户端；未注册 ID 404。
+
+**依赖**：后端 FastAPI 路由 + 现有 auth 中间件扩展。
+
+---
+
+## 阶段 2：租户模型与数据域
+
+**目标**：同一应用、多个客户，数据严格隔离。**这是本方案唯一的真成本。**
+
+**交付物**
+
+| 组件 | 内容 | 接入点 |
+|---|---|---|
+| 租户模型 | `tenant` = 客户（门店/企业）；应用 × 租户 = 一个"实例" | 新增数据表/集合，或扩展现有 users 结构 |
+| 数据域键 | 统一 `app_id + tenant_id` 复合键 | 底层 `store.py` 读写路径加域前缀 |
+| 隔离规则 | 平台管理员可见全部；商家只见自己租户；顾客只见应用用户端数据 | 复用现有 RBAC + 审计 |
+| 租户元数据 | 客户名称、开通时间、状态（试用/正式/停用）、灰度版本 | 纯配置，后台字段录入 |
+| 审批按租户 | 同一应用的审批规则可按租户差异化（如大额订单需二次确认） | 复用 `approval.py`，审批记录加 `tenant_id` |
+
+**验收**：两个测试租户同时使用点餐应用，各自菜单/订单互不可见；审批记录能按租户过滤。
+
+**依赖**：阶段 0/1 + 现有 store/RBAC/审批。
+
+---
+
+## 阶段 3：能力网关与 SDK
+
+**目标**：应用（无论前后端）以统一方式拿身份、调编排/审批/数据，而不再直连平台内部 API。
+
+**交付物**
+
+| 组件 | 内容 |
+|---|---|
+| 能力网关 API | `/api/app-gateway/{app_id}/{tenant_id}/...`：身份上下文、编排 run（复用现有 run 链路）、审批提交/决策、数据域读写 |
+| 身份注入 | 网关自动带上 `role`（customer/merchant/admin）+ `tenant_id`，应用不再自建账号 |
+| SDK（JS） | 前端 `window.AppSDK`：`getContext()`、`invoke(编排)`、`submitApproval()`、事件上报；未接入 SDK 时优雅降级 |
+| SDK（Python，可选） | 后端应用进程调网关的轻客户端，便于应用有自己的服务端 |
+| 鉴权边界 | 顾客只能调自己应用实例的只读+下单能力；商家可管理本租户；平台管理员全量 |
+
+**验收**：用户端点"帮我推荐"→ SDK → 网关 → 现有"智能点餐"编排实际跑起来并把结果回流；下单触发审批并生成按租户归属的记录。
+
+**依赖**：阶段 0-2 + 现有 crew 编排、审批、DemoLLM。
+
+---
+
+## 阶段 4：智能点餐作为首个应用接入
+
+**目标**：第一个真实租户应用的完整闭环。
+
+**交付物**
+
+| 端 | 内容 | 复用 |
+|---|---|---|
+| 用户端 H5 | 浏览菜品 / 智能推荐（走 SDK→编排）/ 下单（走审批）/ 查订单状态 | `plugins.menu_app.tools` 菜单与订单数据 |
+| 商家端 H5 | 菜品 CRUD、库存、接单出餐、订单审批处理 | 同一数据域，`approval` 管理 |
+| 数据模型落地 | 菜单/库存/订单从进程内存迁到租户数据域 | 阶段 2 的 store 域 |
+
+**验收**：一名"商家"开通租户并维护菜品；一名"顾客"完成"智能推荐 → 下单 → 审批通过 → 订单可见"全流程。
+
+**依赖**：阶段 0-3。
+
+---
+
+## 阶段 5：市场化管理（不启动，仅设触发条件）
+
+| 触发条件 | 出现的信号 |
+|---|---|
+| 第三方开发者要接入 | 出现"不归你管的人"要求上架应用 |
+| 应用数量爆炸 | 内部应用多到需要目录式浏览（几十个起） |
+| 客户自助开通 | 客户要自己注册、自己开应用，而非你后台录入 |
+
+触发任一后再把"浏览页、上架审核、版本发布流程"加进来。
+
+---
+
+## 与现有模块的接入点总表
+
+| 现有模块 | 需要动什么 |
+|---|---|
+| `crew_engine.py`（工具注册/编排） | manifest 的 `capabilities`/`crew_ref` 与其对齐；能力网关调 run 走现有入口 |
+| `store.py`（数据层） | 底层读写加 `app_id+tenant_id` 域前缀 |
+| `approval.py`（审批） | 记录加 `tenant_id`，规则可按租户配置 |
+| `main.py`（路由/鉴权） | 新增 `/app/*` 分发 + `/api/app-gateway/*`，不走原 `_PUBLIC_PATHS` |
+| `plugins/menu_app/tools.py`（点餐） | 数据源从内存迁到租户数据域 |
+| 前端 `App.jsx` | 新增 `/app/:appId/:tenantId` 独立路由（不套后台 Layout） |
+
+## 落地顺序建议（含阶段内优先级）
+
+| 次序 | 事项 | 理由 |
+|---|---|---|
+| 1 | 阶段 0 manifest 极简版（仅注册+校验） | 半小时级，打通"认识应用" |
+| 2 | 阶段 1 入口路由 | 用 hello 壳应用验证 URL 分发 |
+| 3 | 阶段 2 租户与数据域 | **关键路径**，尽早暴露隔离复杂度 |
+| 4 | 阶段 3 网关最小版（身份+run+审批） | 复用已有编排验证闭环 |
+| 5 | 阶段 4 点餐应用接入 | 端到端价值 |
+| 6 | 阶段 5 永远后置 | 触发条件出现再谈 |
+
+两点提示：
+- **阶段 2 不要拖后**：数据域隔离如果等应用接完再补，迁移成本会指数上升（进程内存数据要回填到租户域）。
+- **阶段 3 的网关不要做成"新编排引擎"**：它只是现有 run/审批/数据的统一出口，避免重复造轮子。
+
+这份清单停留在方案层，没有动任何代码。需要我把它继续深化成某一阶段的开发任务单（比如先做阶段 0+1 的最小可验证闭环），或者落成文档文件，都可以说一声。
+
+先快速核对现有代码的实际结构，确保任务清单贴合真实代码而不是凭空设计。
+
+
+用户要细化阶段 0-3 的开发任务，先不管点餐应用，先补底座。需要给出具体的、可执行的开发任务清单（不写代码，是任务细化）。
+
+让我先看一下当前代码库的具体结构，以便任务尽量贴合实际代码，比如 store.py、auth.py、main.py、approval.py、crew_engine.py 的现状，这样任务里的接入点、文件、函数名才准确。
+
+我应该快速浏览关键文件，确保任务基于真实代码而不是猜测。让我并行读几个关键文件。
+
+我现在已经了解了实际的代码结构：
+- `store.py`：轻量 JSON 文件存储，集合 = `data/{name}.json`，有 `list_all/get/create/update/delete`，没有租户域概念
+- `auth.py`：HMAC token，三角色（admin/member/viewer），`ROLE_RANK`
+- `main.py`：FastAPI，`_PUBLIC_PATHS` 白名单，认证中间件按路径/方法判权
+- `approval.py`：审批记录存 approvals.json，工具名集合驱动
+
+现在细化阶段 0-3 的开发任务。用户要求"按这个方案来，生成底座演进清单"→ 我已经生成，用户回应"先补底座再接入应用，细化阶段 0-3 任务"。
+
+所以我需要给出阶段 0-3 的细化任务清单，贴合实际代码结构。任务要具体到文件、函数、数据模型、验收。
+
+注意用户上一轮说"细化阶段 0-3 任务"，现在还不需要写代码，是要任务细化清单。保持方案文档形式，不要直接写代码。但任务清单本身可能包含少量接口签名示例（这是方案，不是实现）。
+
+让我组织一份详细的阶段 0-3 任务分解，按可交付、可验收的任务粒度。
+
+结构：
+- 阶段 0：应用清单（manifest）与加载器
+  - 任务 0.1 manifest 数据模型与校验
+  - 任务 0.2 manifest 加载器（启动时扫描）
+  - 任务 0.3 应用列表 API（查看/注册/下架）
+  - 验收
+- 阶段 1：统一入口与路由
+  - 任务 1.1 入口路由 /app/{app_id}/{tenant_id}
+  - 任务 1.2 静态托管与分发（托管 or 外链 by entry.url）
+  - 任务 1.3 入口鉴权与公开路径调整
+- 阶段 2：租户模型与数据域
+  - 任务 2.1 租户数据集合 tenants.json
+  - 任务 2.2 store 数据域支持（按 app_id+tenant_id 前缀的域存储）
+  - 任务 2.3 审批记录加 tenant_id + 按租户过滤
+  - 任务 2.4 租户管理 API（创建/停用/配置）
+- 阶段 3：能力网关与 SDK
+  - 任务 3.1 网关路由 /api/app-gateway/*
+  - 任务 3.2 身份上下文注入（role + tenant_id）
+  - 任务 3.3 编排 run 转发（复用 run_manager）
+  - 任务 3.4 审批提交/决策接口
+  - 任务 3.5 前端 SDK（AppSDK）
+  - 任务 3.6 文档与示例（hello 应用接入样例）
+
+对每个任务给出：内容、涉及文件、关键设计点、验收标准。最后给依赖图和里程碑。
+
+要贴合现有代码：store.py 加域概念需要小心设计——最简方案是不改 store.py 的 API，而是引入 data_namespace/文件前缀（如 `apps/{app_id}/{tenant_id}/menu.json`），或者给 store 增加域参数。或者更简单：数据域做成"新的集合命名规则"：`menu@menu-app@store-1`。但 store.py 的集合名是文件名，可以用分隔符。这是任务设计要决策的点。
+
+我认为最不侵入的方案：store 增加 `scoped(name, domain)` 或直接扩展 create/list_all 支持命名空间路径。或者引入独立的 `app_domain` 模块封装 store 读写，在 store.py 之上做前缀。我推荐后者（不改 store 核心，新增 app_store 封装）。
+
+审批：approval.create 加 tenant_id 字段（默认空），审批按租户过滤。
+
+auth：新增角色或复用？顾客角色（customer）与后台三角色分开——加一个 `ROLE_RANK` 之外的应用侧身份模型，比如 app 网关签发独立的 app token（含 app_id/tenant_id/role）。不必污染后台 token。
+
+前端：App.jsx 加 /app/:appId/:tenantId 路由，独立 Layout，SDK 挂载。
+
+把任务写成可勾选清单，粒度到"半天~1天"的级别。不写完整代码，但给出关键签名。
+
+用户是探讨阶段，明确"先不管点餐，先补底座再接入应用，细化阶段 0-3 任务"。所以现在产出：细化任务清单文档。用 markdown 输出（回复正文），不要创建文件（用户没要求文件）。
+
+组织输出。要控制篇幅但足够细。用表格 + 分级列表。
+基于实际代码核对完成（`store.py` 是纯 JSON 集合、`auth.py` 三角色 HMAC、`main.py` 白名单中间件、`approval.py` 全局工具名驱动）。以下是把阶段 0-3 细化成的可执行任务清单，粒度到“半天~1 天一件”，每件带验收标准。
+
+---
+
+# 阶段 0 · 应用清单与加载器
+
+**目标**：底座认识“应用”（当前只认识工具和编排），最小可验证：一个空壳 H5 应用能被系统登记。
+
+## 任务 0.1 应用 manifest 数据模型
+- 新增 `apps/manifest.py`，定义 `AppManifest`（pydantic 或 dict 校验均可，贴合现有风格）：
+  | 字段 | 说明 |
+  |---|---|
+  | `app_id` | 唯一标识，如 `menu-ordering` |
+  | `name` / `version` | 名称与版本号 |
+  | `entry` | `{ type: "static" \| "remote", url: "/app/xxx" 或 "https://..." }` |
+  | `endpoints` | `[{ id:"user"\|"merchant", title, route }]` |
+  | `capabilities[]` | 工具名列表（须在工具目录中存在） |
+  | `crew_ref` | 绑定的编排 id（可空） |
+  | `data_models[]` | 声明数据域（`menu/orders/...`，预留阶段 2） |
+- 校验函数：必填字段、`app_id` 唯一、capability 存在于 `tools_registry`。
+- **验收**：非法 manifest（缺 app_id / 引用不存在的工具）在加载时报错并有明确信息；合法样例通过。
+
+## 任务 0.2 清单加载器
+- 新增 `apps/loader.py`，启动时扫描 `plugins/` 与应用目录中的 `app-manifest.json`，调用任务 0.1 校验，装入内存注册表（`_APPS: dict[str, AppManifest]`）。
+- 对齐 `crew_engine._load_registered_tools()` 风格：**单文件/单目录失败不阻断启动**，记录到审计。
+- 提供 `get_app(app_id)` / `list_apps()`。
+- **验收**：在 `plugins/menu_app/` 放回上一轮的示例 manifest，启动后端后 `list_apps()` 返回该应用；删掉 manifest 重启即消失。
+
+## 任务 0.3 应用管理 API
+- `main.py` 新增（走管理员权限）：`GET /api/apps`（列表）、`POST /api/apps`（手动注册，用于不落磁盘的场景）、`DELETE /api/apps/{app_id}`（下架）。
+- **验收**：管理员可在前端“应用”页看到登记的应用与能力清单；下架后入口失效（影响阶段 1）。
+
+**阶段 0 完成标志**：有一个空壳 hello 应用被系统识别，`GET /api/apps` 可返回它。
+
+---
+
+# 阶段 1 · 统一入口与路由
+
+**目标**：`/app/<app_id>/<tenant_id>` 一个 URL 打开客户的应用。
+
+## 任务 1.1 入口路由
+- `main.py` 新增 `GET /app/{app_id}/{tenant_id}`（HTML 壳页）：查 `list_apps()` → 应用不存在或已被下架返回 404/下架页。
+- 壳页逻辑：按 `entry.type` 分发——
+  - `static`：直接加载托管静态资源的路径；
+  - `remote`：`<iframe src="entry.url">` 或整页跳转。
+- **验收**：本地放一个 `hello.html` 静态资源，`/app/hello-app/demo` 能打开它；`/app/no-such-app/x` 返回 404。
+
+## 任务 1.2 静态资源托管与 SPA 兼容
+- 后端增加静态目录映射（如 `apps/hosted/`）供 `static` 型应用使用；前端 dev 代理与 production 构建都要能命中。
+- **验收**：托管目录里的子路由（如 `/app/hello-app/demo/menu`）刷新不 404。
+
+## 任务 1.3 入口鉴权策略
+- `/app/*` **不进**原 `_PUBLIC_PATHS`（原中间件只拦 `/api` 开头，天然放行 `/app`，需在应用网关层补身份逻辑）。
+- 定义游客可达性：用户端（游客可浏览菜单）免登录；商家端（管理菜品/接单）必须带登录态，且仅本租户商家可见。
+- 用轻量 cookie 或 query token 传递“当前身份上下文”，具体实现放到阶段 3 网关统一做，本阶段只留传参通道。
+
+**阶段 1 完成标志**：浏览器直开某应用的客户入口能到达对应端；未注册应用 404；商家端入口在未登录时被拦截。
+
+---
+
+# 阶段 2 · 租户模型与数据域（标为“真成本”，重点安排）
+
+**目标**：同一应用 × 多个客户，数据严格隔离。
+
+## 任务 2.1 租户数据集合
+- 新增 `tenants.json` 集合（用现有 `store`），字段：`tenant_id`、`name`、`status`（trial/active/disabled）、`apps: [{app_id, version, approval_rules?}]`、`created_at`。
+- 新增租户 CRUD API（`/api/tenants`，管理员）。
+- **验收**：后台能创建/停用租户；停用后该租户所有应用入口失效。
+
+## 任务 2.2 store 数据域层（关键设计决策）
+- **不改 `store.py` 核心**（保持 `{name}.json` 集合 API），在它之上新增 `apps/app_store.py`：
+  - 域键 = `f"{app_id}@{tenant_id}"`，读写 `data/apps/{app_id}/tenant_{id}/{model}.json`；
+  - 提供 `domain_read/app_store 封装的 list/get/create/update/delete`，内部调用现有 `store` 或直接文件读写。
+  - 显式校验：任何调用必须携带 `(app_id, tenant_id)`，禁止裸读写，制造“物理隔离”习惯。
+- **验收**：租户 A 写入 `menu` 不出现于租户 B 的读取结果；同一进程内同时操作两个域无串扰。
+
+## 任务 2.3 审批记录加租户维度
+- `approval.create()` 增加可选参数与字段 `tenant_id`、`app_id`（默认空，兼容旧记录）；
+- `list_approvals` 支持按 `app_id+tenant_id` 过滤，前端审批页显示归属应用/租户。
+- **验收**：商户端下单生成的审批记录带正确租户标记；按租户过滤结果准确。
+
+## 任务 2.4 审批/数据规则按租户配置（可选增强，属阶段 2 末）
+- 租户级 `approval_rules`：如“该租户 1-2 人桌免审批、3 人以上需确认”，实现上仍是工具名集合 + 额外条件，落地 `requ中条件` 到审批记录。
+- **验收**：两个租户对同一工具（如 `order_process`）的审批要求可不同。
+
+**阶段 2 完成标志**：两个测试租户使用同一应用、数据与审批记录互不可见，后台可按租户管理。
+
+---
+
+# 阶段 3 · 能力网关与 SDK
+
+**目标**：应用以统一方式拿身份、调编排/审批/数据，不再直连平台内部 API。
+
+## 任务 3.1 网关路由与身份上下文
+- 新增 `/api/app-gateway/{app_id}/{tenant_id}/...` 全部路由，中间件解析并注入 `Context = {app_id, tenant_id, role: customer|merchant|admin, user_id}`。
+- 签发**应用侧 token**（预期与后台 token 区分，`auth.py` 新增 `issue_app_token/verify_app_token`，字段含 app_id/tenant_id/role），游客场景可匿名生成短期上下文。
+- **验收**：顾客调用只读能力成功；顾客尝试商家接口返回 403；租户 A 的 token 访问租户 B 数据返回 403。
+
+## 任务 3.2 编排 run 转发（复用不重建）
+- `POST /api/app-gateway/{app_id}/{tenant_id}/run`：查 `crew_ref` → 调用现有 `run_manager.start_run(crew_cfg, inputs)` → 返回 `run_id`；另开 `poll` 接口复用现有轮询。
+- 网关在此处注入 `tenant_id` 到 run 上下文（供审批/审计使用）。
+- **验收**：用户端发“帮我推荐” → 网关 → 现有“智能点餐”编排实际跑通并返回推荐文本。
+
+## 任务 3.3 审批提交/决策 + 数据域读写
+- 网关透出：`POST .../approvals`（应用侧触发审批，如商户确认）、`POST .../orders`（走 app_store 域写订单）。
+- 复用 `approval.create/decide`，记录自动带 `app_id+tenant_id`（阶段 2 字段）。
+- **验收**：顾客下单 → 生成审批 → 在平台后台审批列表可见并可决策 → 结果回流用户端。
+
+## 任务 3.4 前端 SDK（`AppSDK`）
+- 新增 `frontend/src/apps/sdk.js`，暴露：
+  | 方法 | 行为 |
+  |---|---|
+  | `getContext()` | 返回 `{app_id, tenant_id, role}` |
+  | `invoke(接口, payload)` | 调网关，自动带 app token |
+  | `runCrew(inputs)` | 编排 run + 轮询封装 |
+  | `onEvent(fn)` | （预留）SSE/轮询事件订阅 |
+- 未拿到上下文时优雅降级（应用可匿名浏览但功能受限）。
+- **验收**：任一 H5 应用引入 SDK 后能拿到身份、发一次编排 run 并回流结果。
+
+## 任务 3.5 开发者接入文档（应用侧最小契约）
+- 交付 `docs/app-integration.md`：三步接入（manifest → 页面 → SDK）、工具/审批复用说明、示例 hello 应用。
+- **验收**：按文档新开一个空壳应用（不碰平台代码）→ 管理员注册 → 入口可见。
+
+**阶段 3 完成标志**：按文档接入一个外包应用，它能拿到身份、调编排、触发审批。
+
+---
+
+# 依赖与里程碑
+
+```
+0.1→0.2→0.3 ──▶ 1.1→1.2→1.3 ──▶ 2.1→2.2→2.3(→2.4) ──▶ 3.1→3.2→3.3→3.4(→3.5)
+   M0：底座认识应用    M1：URL 分发         M2：租户隔离         M3：网关闭环
+```
+
+| 里程碑 | 内容 | 建议顺序原因 |
+|---|---|---|
+| M0 | 阶段 0 全部 | 最低成本打通“注册-识别” |
+| M1 | 阶段 1 全部 | 用 hello 壳验证分发后再碰租户 |
+| M2 | 阶段 2.1-2.3 | **隔离是唯一硬骨头，尽早暴露复杂度**；2.4 可视进度后置 |
+| M3 | 阶段 3.1-3.4 | 复用编排跑通端到端；3.5 文档随后 |
+
+两个执行提醒（与之前一致，但落到任务上）：
+- **任务 2.2 是全程最关键的一步**：数据域层一旦定型，后续所有应用的数据读写都走它，接口设计值得单独评审一轮。
+- **任务 3.2 严禁重建编排**：网关只做“转发现有 run 链路 + 注入租户上下文”，任何新“编排引擎”的苗头都在评审中否决。
+
+这份清单仍未写任何代码。要不要我把它落成一个 `docs/` 下的计划文档（如 `底座演进-plan.md`），方便你直接对照执行？
+
+好，开始阶段 4。先核对点餐应用现状与编排/工具数据结构，确保接入一致。
+
+
+
+
+
+核对点餐编排对应的智能体工具配置，确保工具接入一致。
+
+
+Now I understand the menu_app tools. For phase 4, I need to build the smart ordering app as an H5 app that:
+- User side: browse menu, smart recommend (via crew/gateway), order (via approval), check order status
+- Merchant side: manage dishes/inventory, orders, approval processing
+
+But there's an important design point from earlier: the current tools.py uses in-process memory `_MENU`, `_ORDERS`. For the app to have real per-tenant data, ideally data should come from the tenant data domain (app_store). However, phase 4's goal is "智能点餐作为首个应用接入" — the base plan said "数据模型落地：菜单/库存/订单从进程内存迁到租户数据域（阶段2的 store 域）".
+
+But wait — this is a demo app. The tools are used both by the crew (via crew_engine which uses tools.py in-process) AND by the app directly. The cleanest approach that keeps the crew working AND gives per-tenant data is complex. Let me think about the scope.
+
+Given the earlier conversation and the base evolution plan, Phase 4 deliverable:
+- 用户端 H5: 浏览菜品 / 智能推荐（走 SDK→编排）/ 下单（走审批）/ 查订单状态 — reuse plugins.menu_app.tools 菜单与订单数据
+- 商家端 H5: 菜品 CRUD、库存、接单出餐、订单审批处理 — same data domain, approval management
+- 数据模型落地: 菜单/库存/订单从进程内存迁到租户数据域
+
+The cleanest design given our new app_store: build the app with its own domain data (menu stored in app_store for tenant). But the tools.py uses in-process _MENU. Two options:
+
+Option A: Rewrite tools.py to read/write from app_store (per-tenant). This means crew tool calls would need tenant context — which we already wired through (app_id/tenant_id flow into build_tool → _ApprovalGate, but the actual delegate tool `_run` doesn't receive tenant context). We'd need to pass tenant context into tools. That's a bigger refactor.
+
+Option B: Build the H5 app pages (user + merchant) that manage their own menu/order data in the app data domain (app_store via gateway data API), and the tools remain as-is (in-process demo data) for the crew recommendation flow. This keeps scope manageable but has two data sources (tools.py in-memory + app_store) which is inconsistent.
+
+Given the user wants to "开始开发智能点餐应用" and earlier decided to do it properly (先补底座再接入应用), but we should keep it pragmatic. The base plan phase 4 says "数据模型落地：菜单/库存/订单从进程内存迁到租户数据域".
+
+Let me reconsider. The most coherent approach that isn't over-engineered:
+
+The smart ordering app = an H5 app with:
+- app-manifest.json (menu-ordering app)
+- User page (H5): browse menu, smart recommend (via SDK runCrew → crew "智能点餐"), order (via SDK invokeTool order_process → approval), order status
+- Merchant page (H5): manage menu (CRUD via SDK data API on app_store), see orders, process approvals
+
+For data: store menu/orders in the tenant data domain (app_store) via the gateway data API. The app manages its own menu data. The crew tools (recommendation etc.) operate on tools.py in-memory menu... that's the inconsistency.
+
+Hmm. Actually, to make it truly coherent, the cleanest move within scope: the app reads its menu from the tenant data domain (app_store), initialized with seed dishes. The crew's tools still read from tools.py in-memory — but for the recommendation flow via the app, we want it to reflect the app's menu.
+
+Actually, let me not over-engineer. The pragmatic and coherent-enough approach:
+
+Make tools.py read menu data from the app_store domain when app/tenant context is available. We already pass app_id/tenant_id into build_tool... but the delegate tool instance `_run` doesn't know tenant. 
+
+Let me look at how build_tool creates the tool — it calls `_load_tool_class(cls_name)()` with no args. To pass tenant context, I could set an attribute on the tool instance after construction. But that changes the tool class contract.
+
+Alternative simpler approach that stays coherent: Give the tools the ability to resolve a "current tenant" via a module-level current-context, but that's thread-unsafe/global.
+
+Actually, for the demo scope, I think the cleanest is:
+
+Phase 4 = the app manages its OWN data via app_store (tenant-scoped), exposed through the gateway data API. The H5 pages (user + merchant) use these APIs directly. For the "智能推荐" feature, the app uses runCrew (the crew "智能点餐") which uses the tools.py tools with in-memory demo menu — but I can make tools.py's _MENU read from a seed that's shared/consistent, OR simply have the app's recommendation feature ALSO be reachable via invokeTool("recommendation", ...) which uses tools.py in-memory.
+
+I think for a demo app this is acceptable, but let me reduce inconsistency cheaply: I'll make tools.py load its menu from the app data domain per tenant when possible... no, too complex.
+
+Let me step back and think about what gives the most value with clean architecture:
+
+The real goal: 顾客能点餐、商家能管菜、审批能拦下单. The crew recommendation is a nice-to-have that already works through the gateway.
+
+Decision: Build the app with tenant data domain as the source of truth:
+- App seeds default menu into each tenant's data domain (via a seed on tenant subscription or first access / via app_store "menu" model)
+- User H5: reads menu from gateway data API `/menu`, orders by... hmm, but ordering needs approval + inventory + order record. 
+
+Actually the tools already encapsulate order logic (inventory check, order creation, stock deduction, order storage). The natural integration: 
+- User orders → gateway invokeTool("order_process", {dish_ids}) → creates order in tools.py memory + approval block
+- Merchant manages menu → should reflect in tools.py
+
+The cleanest coherent architecture within reasonable effort: **make tools.py read/write menu & orders from the tenant data domain (app_store)**, passing tenant context to tools. Since we already plumb app_id/tenant_id through build_tool → wrap → _ApprovalGate, I can also set them on the delegate tool so the tool's `_run` can access a tenant-scoped store.
+
+Let me check: in build_tool, after `raw_tool = _load_tool_class(cls_name)()`, I can do `raw_tool._app_id = app_id; raw_tool._tenant_id = tenant_id` — but only if the tool class supports it (BaseTool has extra attributes allowed? They're pydantic models, so setting arbitrary attributes may fail unless PrivateAttr). Actually BaseTool is a pydantic BaseModel — setting arbitrary attributes would fail validation unless configured. I'd need to define them as PrivateAttr in tools.py. That's doable but modifies tools.py.
+
+Given the demo nature and to avoid over-engineering, here's my final scope decision:
+
+**Keep tools.py in-memory demo data as-is for the crew flow (recommendation via runCrew works).** For the H5 app:
+- User page: browse menu (from app's tenant data domain, seeded), smart recommend (runCrew → crew "智能点餐" — tools.py recommendation works), order (invokeTool order_process → approval), order status (from app data domain orders)
+- Merchant page: menu CRUD (app data domain), view orders (app data domain), process approvals (gateway approvals)
+
+But then merchant menu CRUD won't affect tools.py recommendation/inventory, and order via invokeTool won't create order records in the app data domain — inconsistent.
+
+Hmm, this is getting complicated. Let me simplify to the MOST coherent demo that's not over-engineered:
+
+**Simplest coherent approach**: The app uses the gateway data domain as its source of truth for menu & orders, AND the order flow is done via the gateway data API + approval rather than the order_process tool... but approval is tied to tools.
+
+Actually wait — approval.create is generic; I can create approval records directly from the gateway. But the earlier design explicitly wanted "下单复用现有审批拦截(_ApprovalGate)".
+
+Let me re-read the plan's Phase 4 acceptance: "一名'商家'开通租户并维护菜品；一名'顾客'完成'智能推荐 → 下单 → 审批通过 → 订单可见'全流程。"
+
+OK here's my decision, balancing coherence and scope:
+
+1. **Refactor tools.py to be tenant-aware**: tools read/write menu & orders in the tenant data domain via app_store, with a per-instance tenant context (PrivateAttr set by build_tool). This is THE coherent architecture: crew tools AND H5 app share the same tenant-scoped data. This aligns with the plan's "数据模型落地：从进程内存迁到租户数据域".
+
+2. **App pages**: user H5 + merchant H5 + manifest.
+
+3. **Order flow**: user orders → invokeTool order_process (tenant-aware, creates order in tenant domain, approval blocks) → merchant approves via gateway → order final.
+
+This is more work but it's the right architecture and directly fulfills the phase-4 plan. Let me assess the tool changes:
+
+tools.py currently:
+- `_MENU` module-level list of dicts
+- `_ORDERS`, `_ORDER_SEQ` module-level
+- Tools read/write these directly
+
+Refactor:
+- Each tool instance carries `_app_id`, `_tenant_id` PrivateAttr (default "")
+- Tools resolve data via app_store functions: `app_store.list_all(app_id, tenant_id, "menu")` etc.
+- Seed: if menu model empty, seed from a default menu list (the current _MENU data)
+- Order: create order record in app_store "orders" model, decrement inventory in "menu"
+
+But wait: build_tool currently constructs tools with no args. I need to inject app_id/tenant_id into the tool instance. Since _ApprovalGate already has app_id/tenant_id, and the delegate is separate... I'll set attributes on the raw tool before wrapping, only when app_id/tenant_id present. But pydantic BaseModel doesn't allow arbitrary attribute assignment. I can add PrivateAttr fields to the tool classes.
+
+Actually — simpler: I can add a module-level thread-local? No.
+
+Cleanest: add `_app_id`/`_tenant_id` as PrivateAttr defaults to a shared base class or each tool, and have build_tool set them via `raw_tool._app_id = ...`. Since they're declared PrivateAttr, assignment works.
+
+Let me design tools.py refactor:
+
+```python
+from pydantic import PrivateAttr
+from crewai.tools import BaseTool
+
+class _TenantTool(BaseTool):
+    _app_id: str = PrivateAttr(default="")
+    _tenant_id: str = PrivateAttr(default="")
+    _seeded: bool = PrivateAttr(default=False)
+
+    def _menu(self):
+        # read menu from domain, seed if needed
+    def _save_menu(self, rows): ...
+    def _orders(self): ...
+```
+
+Hmm, but each tool instantiation is a separate object; seeding per call. Let me make it practical: a module-level default menu constant, and the tools operate on the tenant domain collection "menu".
+
+Given complexity, let me reconsider scope once more. The user said "开始开发智能点餐应用" — they want a working app. The core value:
+- User sees menu, gets AI recommendation, orders, order goes to approval
+- Merchant manages menu/inventory, processes orders/approvals
+
+I'll do the tenant-aware refactor because it makes the app real and consistent. Let me keep it focused:
+
+Design:
+- `plugins/menu_app/tools.py`: refactor data layer to be tenant-scoped via app_store, keeping same tool names/schemas so the crew "智能点餐" still works (crew runs with app/tenant context now). Add a seed of default menu per tenant.
+- Also the app itself: the merchant menu CRUD can reuse the same tenant "menu" model through the gateway data API — consistent with tools reading the same model!
+
+That's elegant: menu data lives in app_store domain model "menu". Merchant CRUD via gateway `/data/menu`. Tools read/write same model. Orders in "orders" model. Orders via order_process tool (creates "orders" record + decrements inventory + approval).
+
+Wait, but approval for order_process is a global tool-name set (approval.set_approval_required). For the app demo, we want ordering to require approval. Options: set approval config globally to include order_process (affects all apps), or per-tenant rules. For demo, I'll set it globally via the config — but that affects the platform demo too. Alternatively, keep it simple: the manifest declares `order_process` and we just enable approval via the existing config UI. Actually the plan's phase 2.4 (per-tenant approval rules) was optional. For phase 4 demo, I'll rely on the global approval config being set to `order_process` (which I already verified works). But that's a global setting the admin must toggle. 
+
+Hmm, actually let me make the app self-contained: I could have the order flow in the app call the gateway tool endpoint, which respects global approval config. For the demo to "just work", I'll set order_process in approval config at seed time? That changes platform default. 
+
+Better: keep approval config as-is (admin toggles). But for the demo to shine, let me auto-require approval for order_process when... no, keep it explicit and simple: I'll note that the admin enables "order_process" in 审批流 config. Actually — simpler and clean: the app user page shows order status "待审批" when there's a pending approval. But if approval isn't configured, order goes through immediately. Both are valid demo states.
+
+To make the demo deterministic and impressive, I'll seed approval config with order_process = required at startup? That's a behavior change to platform defaults. I think for phase 4, it's reasonable to seed the demo app's approval requirement. But changing global default affects other apps.
+
+Decision: Add per-tenant approval override minimal support — actually, let me just add the app manifest capability with an `approval: "required"` field, and have the gateway check: when invoking a tool via gateway, if the manifest declares approval required for that capability, wrap with approval even if global config doesn't have it. Hmm, that duplicates approval logic.
+
+Wait — build_tool already wraps based on `approval.requires_approval(tool_name)` (global). The manifest capability approval field was in my earlier manifest example but the loader/gateway doesn't use it. 
+
+Let me keep it pragmatic: For phase 4, I'll set approval config to include `order_process` as part of the seed for the demo (in `_seed()`), since the whole platform is a demo and order approval is a flagship feature. Actually that changes the market-report crew's behavior if it ever uses order_process — it doesn't. It's fine. But it also affects the earlier order_plugin_check... that's a test script.
+
+Hmm, let me be careful and minimal. I'll NOT auto-seed approval config. Instead:
+- The app user page after placing order: if approval is required (config), show "已提交，等待商家确认"; merchant page lists pending approvals from gateway and can decide.
+- To make it demonstrable, I'll set approval config via API during my verification, and mention the admin toggles it in 审批流.
+
+Actually, you know what, re-reading the phase-4 plan: "下单复用现有审批：order_process 这类高危工具声明 approval: required". The manifest capability already carries `approval` field in my earlier manifest. Let me make the gateway honor manifest-declared approval per capability. That's clean and app-scoped, no global side effects:
+
+In gateway `gateway_tool`, after building the tool, if the manifest declares `approval: required` for that tool, force-wrap with approval. I can achieve this by temporarily... hmm, build_tool already decides based on global config. 
+
+Simplest: extend `build_tool` to accept `force_approval: bool`. If force_approval True, wrap with _ApprovalGate even if not in global set. The gateway reads manifest capabilities to find approval flag and passes force_approval.
+
+Let me implement that. It's a small, clean addition that makes the app's approval requirement declarative in the manifest (self-contained app), exactly matching the plan.
+
+OK let me also reconsider whether to refactor tools.py for tenant data. That's the biggest chunk. Let me think about effort vs value:
+
+Value: merchant menu CRUD actually affects what customer sees and what AI recommends. Without it, the app is hollow (menu is hardcoded in tools.py).
+
+Given the user explicitly chose "一次性实施全部" and now wants the app built properly, I'll do the tenant-aware refactor. Let me design it carefully but minimally.
+
+Actually, let me reconsider — there's a subtlety. The crew "智能点餐" tools run inside crew_engine.build_tool which now receives app_id/tenant_id. The delegate tool needs those to read tenant menu. But the tool is constructed fresh per build_tool call. I'll set `_app_id`/`_tenant_id` PrivateAttr on the raw tool after construction.
+
+For gateway direct tool calls (`gateway_tool`), I already pass app_id/tenant_id to build_tool → raw tool gets them too.
+
+Let me write the refactored tools.py:
+
+```python
+from pydantic import BaseModel, Field, PrivateAttr
+from crewai.tools import BaseTool
+
+_DEFAULT_MENU = [...same as before...]
+
+def _t_ctx(tool) -> tuple[str, str]:
+    return (tool._app_id or "", tool._tenant_id or "")
+```
+
+Tools resolve data:
+
+```python
+def _read_menu(app_id, tenant_id):
+    if not (app_id and tenant_id):
+        return _DEFAULT_MENU  # 平台后台/编排无租户上下文时用默认
+    rows = app_store.list_all(app_id, tenant_id, "menu")
+    if not rows:
+        # seed from default
+        for d in _DEFAULT_MENU:
+            app_store.create(app_id, tenant_id, "menu", dict(d))
+        rows = app_store.list_all(app_id, tenant_id, "menu")
+    return rows
+```
+
+Wait, app_store records have id (uuid) — the menu items have their own `id` field (1-6). app_store.create adds its own `id` if missing; since menu dicts have `id`, it keeps them. But app_store also sets app_id/tenant_id. Fine. But note: _DEFAULT_MENU items have "id": 1..6 — good, order_process uses dish_ids as ints. 
+
+But there's a conflict: app_store.get uses item "id" field. Menu model items have id as int 1..6 — fine, list works.
+
+Orders: `_ORDERS` in domain "orders". order_process creates an order record: {id: order#, dish_ids, total, wait_minutes, status: "created", created_at}.
+
+The gateway data API exposes these models too, so merchant can list orders and update status (接单/出餐). But gateway data update requires merchant role — good.
+
+But careful: gateway data model routes use `{model}` — menu, orders. The app's manifest data_models declares ["menu","orders"].
+
+One more: the gateway data list/create is generic. Merchant menu CRUD: list via `/data/menu` (any role reads — currently data_list only calls resolve_context, no role restriction — fine, customer can read menu). Create/update/delete menu require merchant role. 
+
+For orders: customer creates order via invokeTool order_process (not via data create, to keep inventory logic + approval). Merchant lists orders via `/data/orders`, updates status via `/data/orders/{id}`.
+
+Alright. Now about `_fmt` and tool return strings — keep same.
+
+Edge: app_store.create with menu item that has "id":1 — but app_store.create generates uuid only if no id; it has id, good. However `update` merges patch with id. For inventory decrement in order_process, use app_store.update(app_id, tenant_id, "menu", str(d["id"]), {"inventory": new_inv}). d["id"] is int; app_store.update compares it.get("id") == item_id (str). So I need to pass str(d["id"]). Or store menu ids as strings. Let me keep ints and pass str().
+
+Hmm wait, app_store.get compares `it.get("id") == item_id` — if item_id is str "1" and stored id is int 1, `"1" == 1` is False. So I must pass the exact type. I'll read the menu dict and use its actual id value. For update, item_id must match stored type (int). So pass d["id"] (int). Let me make app_store tolerant? Better not touch app_store; just pass the right type. I'll pass d["id"] directly (int).
+
+Now the approval force flag. Let me add to build_tool a `force_approval: bool = False` param. In gateway_tool, read manifest capabilities to see approval requirement:
+
+manifest capabilities could be a list of strings (tool names) or list of dicts. In my manifest example earlier, capabilities was a list of dicts with name/source/approval. But my loader/manifest validation treats capabilities as list (any). And gateway checks `if caps and tool_name not in caps` — works if caps is list of strings. Let me support both: normalize capabilities to a set of tool names + a dict of approval flags.
+
+Let me keep it simple: manifest capabilities = list of strings (tool names). Add optional `approval_required: ["order_process"]` field in manifest for declarative approval. Gateway checks `tool_name in approval_required` → force_approval.
+
+That's clean. Update manifest model to accept approval_required list (strings). Validate optionally.
+
+Now implement:
+
+1. tools.py refactor — tenant-aware data + PrivateAttr ctx + order records in domain
+2. build_tool force_approval param in crew_engine.py
+3. gateway gateway_tool pass force_approval + normalize caps (also support approval_required)
+4. manifest: accept approval_required
+5. menu-ordering app: manifest + user H5 + merchant H5 (as hosted static app under apps/hosted/menu-ordering/)
+6. seed tenant for menu-ordering demo? Create a demo tenant "demo-store" subscribed to menu-ordering + approval_required declared in manifest. Actually tenants are created via UI. For verification I'll create via API.
+
+Wait — the H5 app pages: they're hosted static (in apps/hosted/menu-ordering/public). The user page and merchant page both under one app with two endpoints? The entry route `/app/{app_id}/{tenant_id}` serves index.html (user page). Merchant page could be at `/app/{app_id}/{tenant_id}/merchant.html`. The static route handles it.
+
+The SDK parseRoute only extracts app_id and tenant_id (first two segments after /app) — works for sub-paths too since it takes parts[1], parts[2]. Good, merchant.html also gets context.
+
+Role: user page anonymous customer; merchant page needs merchant token. Merchant token obtained how? The merchant logs into the app? For demo simplicity: merchant page has a "以商家身份进入" button that calls SDK.auth("merchant") which hits `/auth` endpoint — but that endpoint allows any caller to request merchant role (no real auth!). That's a security hole for production but for demo it's acceptable? Hmm, the plan said "商家端必须登录". 
+
+For a demo, I'll add a simple merchant PIN/login on the merchant page: e.g., enter a code, call auth("merchant"). It's demo-grade. Actually the `/auth` endpoint currently issues merchant token to anyone. Let me at least require that merchant role issuance requires a secret/pin. For demo, I'll add a simple shared merchant pin (env or default "123456") checked server-side. Keep minimal: gateway auth endpoint accepts `role: merchant` only if `pin` matches MERCHANT_PIN (env CREWHUB_MERCHANT_PIN, default "123456"). admin role issuance requires admin backend token (skip for now — merchant is enough for demo).
+
+Hmm, but that adds surface. Let me keep it truly minimal but not totally open: merchant PIN gate. I'll add it.
+
+Actually, let me reconsider — keep scope tight. The demo needs: merchant can manage menu + process approvals. I'll implement merchant PIN on the gateway auth. Fine.
+
+Let me now also decide the H5 design. Single-file HTML pages (no build) hosted statically — they use AppSDK from /apps/sdk.js. Keep them clean and mobile-styled.
+
+User page (index.html):
+- Header: 智能点餐 (app name from manifest)
+- Section: 今日菜单 (from SDK.data.list("menu")) — cards with name, price, tags, stock, add to cart
+- Section: 智能推荐 — input for need + button → SDK.runCrew({demand}) → poll → show result (recommendation text)
+- Cart / 下单 → SDK.invokeTool("order_process", {dish_ids, seat_count}) → result (order # or pending approval note)
+- Order status list — from where? order_process returns text, not structured. To show order status, merchant updates. For customer, show the order result text. Could also list orders via data.list("orders") — customer role can read data (data_list has no role restriction). Let me show recent orders from domain.
+
+Merchant page (merchant.html):
+- Login with PIN → SDK.auth("merchant", ...)
+- Menu management: list menu (data.list), edit stock/price (data.update), add dish (data.create), delete (data.remove)
+- Orders: list orders (data.list), update status (data.update {status: 接单/出餐/完成})
+- Approvals: list pending approvals (SDK.approvals.list), approve/reject (SDK.approvals.decide)
+
+OK this is a solid, coherent demo. Let me implement.
+
+Let me first re-read the gateway_tool and gateway.py fully to modify, and check current state of manifest validation to add approval_required.
+
+Let me also double check crew_engine build_tool signature now and where force_approval should go.
+
+Let me start implementing. Also need to check how app_store.update handles int ids.
+
+Let me re-check app_store.update: it uses `it.get("id") == item_id`. Menu item id is int; to update inventory pass item_id = d["id"] (int). Good.
+
+For orders: order_process creates order with app_store.create("orders", {...}) → gets uuid id. Order display uses id. Fine.
+
+Now, one concern: app_store.create adds `app_id`/`tenant_id` via setdefault — good.
+
+Menu seeding: when a customer first lists menu and it's empty, tools seed from default. But tools run with tenant context only when invoked via gateway/crew with app/tenant. For the H5 merchant page, listing menu via data.list("menu") returns [] before seeding — merchant would see empty. Better: seed menu at subscription time or first access. Let me add seeding in the gateway data_list for "menu" model? That's app-specific logic in generic gateway — not ideal. 
+
+Alternative: seed when tenant subscribes to app. The tenant_add_app endpoint could trigger app-specific seeding... too app-specific.
+
+Cleaner: the app tools seed on read (tools are the domain logic). For merchant page listing empty menu, that's acceptable — merchant adds dishes. But better UX: seed demo menu on first merchant list. Hmm.
+
+Let me add a generic "on_access" seeding: in gateway resolve_context, no. 
+
+Simplest coherent: menu-ordering app manifest declares `data_models: ["menu","orders"]`; I'll seed the demo menu in the app's own H5 JS on first load if menu is empty — the user page seeds from a hardcoded demo menu via SDK.data.create for each dish. But that requires customer write permission... data_create has no role restriction currently (any authenticated/anon can create). Let me check: data_create calls resolve_context then app_store.create — no role check. So anonymous can create. That's fine for seeding but also means anonymous can create arbitrary data. For demo acceptable, but let me at least restrict data_create/update/delete to non-anonymous (require token)? The plan says merchant manages. For demo, I'll require role for create (merchant/admin) but seed happens... 
+
+OK I'm overthinking the seed. Decision: seed menu inside the tools when empty (tools are authoritative for menu), AND the merchant page, on first load, if menu empty, calls a tiny "ensure menu" via... no.
+
+Cleanest minimal: I'll seed demo menu at tenant-subscribe time in main.py tenant_add_app — but generic across apps is wrong.
+
+Let me just do it in tools: tools seed menu on read. Merchant page ALSO uses SDK.data.list("menu") which returns [] pre-seed. To avoid empty merchant page, merchant page can seed via invokeTool? No.
+
+New clean idea: make the gateway data_list auto-seed from the app's manifest `default_data` (an optional manifest field: default_data: {"menu": [...]}). That keeps generic gateway + declarative app data. 
+
+That's actually elegant and aligned with "manifest declares data". Add optional `default_data` to manifest; gateway data_list, when model empty and app declares defaults, seeds them (merchant/any role). But seeding on read mutates — acceptable (idempotent, only when empty).
+
+Hmm, but then tools reading menu via app_store would also see seeded data. 
+
+Let me implement: manifest optional `default_data: {model: [rows]}`. In gateway data_list, after resolve, if model in app.default_data and list empty → seed via app_store.create for each, then return. This makes the merchant page and customer page and tools all consistent, seeded on first access. 
+
+Wait — but data_list is read by customer too; seeding on customer first browse is fine.
+
+Edge: default_data rows with id as int; app_store.create keeps them. Good.
+
+Let me implement all this. Also add approval_required to manifest.
+
+Files to modify:
+1. apps/manifest.py — add optional fields validation: approval_required (list[str]), default_data (dict of list)
+2. apps/gateway.py — data_list seeding + gateway_tool force_approval + auth merchant pin
+3. crew_engine.py — build_tool force_approval param
+4. plugins/menu_app/tools.py — tenant-aware refactor
+5. apps/hosted/menu-ordering/app-manifest.json + public/index.html (user) + public/merchant.html
+6. main.py — maybe seed demo tenant? I'll create demo tenant via API in verification instead. Actually let me seed a demo tenant + subscription so the app works out of the box: in _seed, create tenant "demo-store" subscribed to menu-ordering if menu-ordering app exists. That's nice for demo. But app loading happens in _seed (load_apps called first) — yes I call app_loader.load_apps() at top of _seed, so apps are loaded. I'll seed demo tenant there.
+
+Let me get going. First manifest.py.
+
+Actually wait — the manifest loader currently validates and loads; adding new optional fields is backward compatible.
+
+Let me read gateway.py current to edit precisely. I have it from writing. Let me proceed.
+
+Let me also verify: does the crew "智能点餐" use agents with the menu tools? The crew tasks m1-m4 reference agents; the agents' tools come from agents.json configs. Let me check agents.json for menu agents and their tools.
+
+智能体工具配置已确认（menu_search / recommendation / inventory_check / order_process / feedback_analysis）。现在开始阶段 4 实施。
+
+设计要点：让点餐工具变成**租户感知**——菜单/订单数据落在租户数据域（`app_store`），工具与 H5 页面读写同一份数据，保证「商家管菜 → 顾客看到 → AI 推荐 → 下单 → 审批」全链路一致。
+
+先重构 [tools.py](file:///workspace/platform/backend/plugins/menu_app/tools.py) 为租户数据驱动。
+
+
+Good. Menu agents have tools: menu_search, recommendation, inventory_check, order_process, feedback_analysis. 
+
+Now I'll implement Phase 4:
+
+1. **tools.py refactor** — tenant-aware data (menu/orders in app_store domain), keep same tool names/schemas. Tools resolve `(app_id, tenant_id)` from PrivateAttr set by build_tool.
+2. **crew_engine.build_tool** — set `_app_id/_tenant_id` on raw tool instance, add `force_approval` param.
+3. **gateway** — gateway_tool passes force_approval from manifest `approval_required`; data_list auto-seeds from manifest `default_data`; auth endpoint merchant PIN.
+4. **manifest.py** — accept optional `approval_required`, `default_data`.
+5. **menu-ordering app** — manifest + user H5 + merchant H5 (hosted static).
+6. **main.py _seed** — create demo tenant subscribed to menu-ordering.
+
+Let me start with tools.py refactor. I'll rewrite it to be tenant-aware with a shared base.
+
+Design of tools.py:
+
+```python
+from __future__ import annotations
+from typing import Any, Type
+from pydantic import BaseModel, Field, PrivateAttr
+from crewai.tools import BaseTool
+from apps import app_store  # wait — circular import? apps.app_store imports store; crew_engine imports plugins.menu_app.tools? 
+
+Let me check import direction: crew_engine imports tools dynamically via _load_tool_class (importlib) at build time, not at module import. tools.py importing apps.app_store is fine (apps.app_store only imports store). But crew_engine imports approval, and approval imports store — no circular with apps. apps.gateway imports crew_engine (build_tool) and apps.app_store. If tools.py imports apps.app_store, and apps.gateway imports crew_engine... no cycle: tools.py is loaded lazily by importlib inside build_tool, by which time modules are loaded. And apps.gateway imports crew_engine at module import; crew_engine doesn't import apps at top. So tools.py importing apps.app_store is safe.
+```
+
+Let me write the tenant-aware base:
+
+```python
+class _TenantTool(BaseTool):
+    """带租户上下文的工具基类：数据落在 app_store 数据域（app_id+tenant_id 隔离）。"""
+    _app_id: str = PrivateAttr(default="")
+    _tenant_id: str = PrivateAttr(default="")
+
+    def _ctx(self) -> tuple[str, str]:
+        return (self._app_id or "", self._tenant_id or "")
+
+    def _menu_rows(self):
+        app_id, tenant_id = self._ctx()
+        if not (app_id and tenant_id):
+            return [dict(d) for d in _DEFAULT_MENU]
+        rows = app_store.list_all(app_id, tenant_id, "menu")
+        if not rows:
+            for d in _DEFAULT_MENU:
+                app_store.create(app_id, tenant_id, "menu", dict(d))
+            rows = app_store.list_all(app_id, tenant_id, "menu")
+        return rows
+
+    def _save_menu(self, rows):
+        # not needed; update per-item
+        pass
+```
+
+Hmm, but app_store.create adds app_id/tenant_id to each row (setdefault) — so menu rows in domain will have extra fields. _fmt uses r.get(...), fine. But tools like recommendation iterate d["inventory"], d["price"], d["name"], d["tags"], d["spicy"], d["id"] — all present.
+
+Wait, seeding from _DEFAULT_MENU via app_store.create stores id as int (kept). And adds app_id/tenant_id. Good.
+
+For inventory decrement in order_process:
+```python
+menu = self._menu_rows()
+d = next((x for x in menu if x["id"] == did), None)
+new_inv = d["inventory"] - count
+if self._has_domain():
+    app_store.update(app_id, tenant_id, "menu", did, {"inventory": new_inv})
+else:
+    d["inventory"] = new_inv
+```
+
+But app_store.update matches it.get("id") == did where did is int and stored id is int — good.
+
+Order creation:
+```python
+oid = ...
+if self._has_domain():
+    app_store.create(app_id, tenant_id, "orders", {
+        "order_no": oid, "dish_ids": list(dish_ids), "total": total, "seat_count": seat_count,
+        "status": "已下单", "created_at": now
+    })
+else:
+    _ORDERS[oid] = {...}
+```
+
+The H5 order status list reads via data.list("orders") — customer role can read (data_list no role restriction). Good.
+
+Let me handle the no-domain fallback (platform standalone / no tenant): keep in-memory dicts for backward-compat with order_plugin_check etc.
+
+Now write tools.py. I'll keep the same 5 tool classes but inherit _TenantTool. Also keep module-level _MENU as _DEFAULT_MENU for fallback and seeding source.
+
+Let me write it.
+
+清理未使用的 import
+
+
+There's a subtle issue with `_menu()`: it reads menu rows from app_store. But app_store.update matches `it.get("id") == item_id`. Menu items stored have id as int. When I call `app_store.update(self._app_id, self._tenant_id, "menu", did, ...)` with did being int, it works.
+
+However, there's a problem: app_store.create for menu seeding stores dict(d) which includes "id" as int. But then app_store's create also does `item.setdefault("app_id", app_id)` — fine.
+
+Wait, but there's an issue with `Counter` import — I removed its usage (I used `dish_ids.count(did)`). Let me remove the unused import. Also `OrderQuery` unchanged.
+
+Let me remove `from collections import Counter` since I no longer use it.
+
+现在更新 [crew_engine.py](file:///workspace/platform/backend/crew_engine.py) 的 `build_tool`：注入租户上下文到工具实例，并支持 `force_approval`（应用清单声明强制审批）
+
+
+Now update crew_engine.build_tool to inject `_app_id`/`_tenant_id` on the raw tool instance, and add `force_approval` param.
+
+为保持「编排内下单也按应用清单强制审批」，把 `force_approval` 贯穿到编排链路。
+
+
+
+
+Wait — `build_tool` in `build_agent` doesn't pass force_approval. For crew runs through the gateway (runCrew), the crew's order_process should be approved per the app's manifest approval_required too. But build_agent/build_crew don't know about force_approval per tool. 
+
+Hmm. For the crew flow, approval is governed by the global `approval.requires_approval` config. The manifest's approval_required is an app-level declarative. For consistency, the crew flow should also honor it. 
+
+Simplest approach: when the gateway starts a crew run (gateway_run), it could set the approval config temporarily? No — global. 
+
+Better: add force_approval tools list threading through build_agent/build_crew/execute_crew. That's more plumbing. Alternatively: since the app's manifest declares approval_required, and the global approval config is the platform-wide mechanism, I can have the gateway_run merge the app's approval_required tools into the run by passing a `force_approval_tools` set down to execute_crew → build_crew → build_agent → build_tool.
+
+That's a fair bit of plumbing but correct. Let me do it cleanly:
+
+- `execute_crew(..., force_approval_tools: set[str] = None)`
+- `build_crew(..., force_approval_tools=None)`
+- `build_agent(..., force_approval_tools=None)` — pass to build_tool as `force_approval=(tool_name in force_approval_tools)`
+- `run_manager.start_run(..., force_approval_tools=None)`
+- `gateway_run` passes `set(app.approval_required)`
+
+Let me implement. Actually the plumb-through: build_agent already iterates tools; I'll compute force per tool.
+
+Let me update all signatures.
+
+Now update the gateway: manifest-driven approval + default_data seeding + merchant PIN. First update manifest.py to accept `approval_required` and `default_data`:
+
+
+
+Now update the gateway: force approval from manifest, default_data seeding, merchant PIN gate. Let me read the current gateway.py relevant parts
+
+
+
+Now update the `/auth` endpoint (PIN gate), `gateway_run` (pass force_approval_tools), `gateway_tool` (force approval), and `data_list` (default_data seeding)
+
+
+
+Now the `data_list` default_data seeding:
+
+
+
+现在创建「智能点餐」轻应用：manifest + 用户端 H5 + 商家端 H5。
+
+
+
+
+Now create the menu-ordering app. I'll create the manifest with:
+- app_id: menu-ordering
+- name: 智能点餐
+- entry: static, url: /app/menu-ordering
+- endpoints: user (route /), merchant (route /merchant.html)
+- capabilities: menu_search, inventory_check, recommendation, order_process, feedback_analysis
+- crew_ref: crew-menu-order
+- approval_required: ["order_process"]
+- data_models: ["menu", "orders"]
+- default_data: menu (the 6 default dishes)
+
+Then create user H5 (index.html) and merchant H5 (merchant.html).
+
+Also seed a demo tenant subscribed to menu-ordering in main.py _seed.
+
+Let me create the manifest first.
+
+创建用户端 H5（浏览菜单、智能推荐、下单、订单状态）
+
+
+Now the user H5 page. It should:
+- Header: 智能点餐 app name
+- Menu list from SDK.data.list("menu")
+- Smart recommend: input need + button → SDK.runCrew({demand}) → poll → show result
+- Cart: select dishes (qty) → 下单 → SDK.invokeTool("order_process", {dish_ids, seat_count}) → result text (blocked by approval → show 已提交等待确认)
+- Orders: list recent orders from data.list("orders") + status
+
+Design mobile-first, clean. Single HTML with inline CSS/JS. Uses /apps/sdk.js.
+
+Let me write it carefully. I'll keep it self-contained and readable.
+
+For the recommend flow: runCrew returns run_id; poll via pollRun until done, collect final crew_result raw. Show as recommendation text. This can take some time (crew runs several agents). Show loading spinner.
+
+For ordering: invokeTool("order_process", {dish_ids, seat_count}) — this blocks server-side waiting for approval up to 300s! Because the gateway endpoint calls tool._run synchronously which blocks waiting for approval decision. That's a problem for the H5: the HTTP request will hang until someone approves (or 300s timeout).
+
+Hmm. This is a real UX issue. For the demo, ordering via gateway tool will block the request. Better approach for the H5: place order via a non-blocking path.
+
+Options:
+1. Use the crew run (runCrew) to place the order — the crew runs in background thread, order_process blocks inside the crew thread waiting for approval; H5 polls run events. This is non-blocking from HTTP perspective. But the crew flow is: recommend → order → feedback, which is heavier.
+
+2. Add a "submit order" endpoint that runs the order in a background thread and returns immediately with an approval id. But order_process tool itself blocks.
+
+3. Keep it simple: the H5 order button calls invokeTool with a client-side timeout — the request hangs server-side; H5 shows "已提交，等待商家确认". But the HTTP connection stays open... fetch won't return until approved. Not great but works for demo if merchant approves quickly. However if customer abandons, the thread keeps waiting 300s.
+
+Actually, the cleanest for demo: the order flow via crew (runCrew) is background — no HTTP hang. But running the whole crew (4 agents incl feedback) is slow and the user page wants quick ordering.
+
+Let me think about what's most demo-friendly and correct:
+
+Given the app design, I think the best UX: user places order → order_process invoked with approval → but invoked in a way that returns immediately.
+
+I could add a gateway endpoint `POST .../orders` that: creates the order via the tool logic in a background thread and returns {order_id, approval_pending}. But that bypasses build_tool/approval.
+
+Alternative clean approach: keep gateway_tool synchronous, but the H5 order call runs with a short client fetch and we show "下单中（等待审批）". For the demo to be pleasant, the merchant approves quickly. And server-side the tool blocks up to 300s — acceptable for demo but ties up a thread.
+
+Hmm, actually there's a subtlety: gateway_tool calls tool._run which for a wrapped approval gate blocks. During the demo, the "顾客下单" button triggers this, and the merchant (another tab) approves → then the fetch returns. That's actually a nice synchronous demo. But if the user just wants to see order created without approval, it won't return.
+
+I think for the demo, the most robust approach: place order through the **crew path but a lighter one**? No.
+
+Let me reconsider: maybe simplest is to give the H5 a direct order submission that doesn't block the HTTP response, by running the order in a background thread and polling. I can add a dedicated gateway endpoint `POST /{app}/{tenant}/orders` that:
+- builds the order_process tool (with force approval)
+- runs tool._run in a background thread
+- returns immediately with {order_id: null, approval_id: ..., status: "pending"} 
+
+But we don't know approval_id until the thread creates it. We could return an opaque "submission token" and the H5 polls approvals for app/tenant to see the new pending record.
+
+This is getting complex. Let me step back to the demo's purpose and keep it pragmatic:
+
+**Decision**: The H5 order button calls `invokeTool("order_process", {...})` which is synchronous. To avoid hanging HTTP, I'll set the fetch with no special handling but the UI shows "已提交订单，等待商家审批确认…" right away, and the response (when it comes) updates to the final order info. Since approval blocks, the customer sees pending state; merchant approves → response arrives → order confirmed. This is actually a nice interactive demo IF the merchant approves. If nobody approves, request hangs — acceptable for demo but poor.
+
+Better alternative that avoids hang AND stays in architecture: the user page triggers order via the **crew run** with a **single-agent minimal flow**? No.
+
+Actually — let me reconsider the gateway_tool timeout. I can make the H5 use a wrapper: call invokeTool but treat it as fire-and-forget with a client-side abort, and show "已提交". Then poll `/approvals` (customer can't — approvals require merchant/admin) or poll orders domain list to see when the order appears (customer CAN read data.orders). So:
+
+- H5 order button: call invokeTool order_process with a 2s client timeout (abort). Server continues processing in background... but FastAPI with sync route runs in threadpool; aborting client doesn't cancel server thread. The tool blocks in threadpool waiting for approval. When approved, order created in domain. Customer polls data.orders every 2s → sees new order with status. 
+
+This works without hanging UX! The server thread is tied up until approval, but for a demo that's fine.
+
+But wait — gateway_tool is a sync def route; FastAPI runs it in threadpool. Client abort → server continues. OK.
+
+Actually even simpler and cleaner: skip invokeTool for ordering; since orders are created in the tenant domain and approval gates order_process, I could... no, order creation logic (inventory, pricing) lives in the tool. Keep invokeTool.
+
+So H5 user page order flow:
+1. Collect cart {dish_ids, seat_count}
+2. POST invokeTool order_process (fetch) — immediately show "已提交，等待商家确认（审批中）"
+3. Start polling data.list("orders") every 2s; when a new order appears for this session... hard to match. Instead, show a note and a "刷新订单" button; user can view orders.
+
+Hmm, matching the created order to the submission is fiddly. Let me make it observable: after submit, poll orders; any new order with matching dish_ids and recent created_at shows as "待确认". Good enough for demo.
+
+Actually, you know what — let me simplify the demo flow to be deterministic and satisfying:
+
+The user page has:
+- 今日菜单 (from domain, live)
+- 智能推荐 (runCrew, poll events, show final result) — this is the "wow" feature
+- 去下单: select dishes → invokeTool order_process → because approval required, the request blocks. To avoid a hanging button, I'll use a 60s client timeout: if it times out, we show "订单已提交，等待商家确认" and start polling orders. When merchant approves within 60s, fetch resolves with order created text.
+
+Wait, that means the fetch promise resolves when approved (good) OR times out at 60s (show pending, poll orders). Both paths converge to showing order. 
+
+Actually the 300s server block vs 60s client timeout: after 60s client gives up but server thread still waits. When merchant approves at t=120s, order is created; customer polling orders sees it. Fine.
+
+This is acceptable. Let me implement with a 60s timeout using AbortController, then fallback to polling.
+
+Hmm, but there's another concern: the gateway_tool response returns `{"tool":"order_process","result":"订单 #N 已创建..."}`. Good — parse order text.
+
+For merchant page: needs merchant token (PIN). Then:
+- 菜单管理: list menu (data.list), edit price/stock (data.update with merchant role), add dish (data.create), delete (data.remove)
+- 订单管理: list orders (data.list), update status (data.update)
+- 审批: SDK.approvals.list() (merchant can), decide approve/reject
+
+Let me write both pages. Keep them mobile-styled, clean, Chinese.
+
+Let me write the user page index.html.
+
+创建商家端 H5（口令登录、菜品管理、订单管理、审批处理）
+
+
+
+
+Now the merchant page. Features:
+- PIN login to get merchant token (SDK.auth("merchant", pin))
+- 菜单管理: list menu (data.list), edit price/inventory (data.update), add dish (data.create), delete (data.remove)
+- 订单管理: list orders (data.list), update status (data.update) — 接单/出餐/完成
+- 审批: list pending approvals (SDK.approvals.list), approve/reject (SDK.approvals.decide)
+
+Let me write merchant.html.
+
+在 `main.py` 种子中创建演示租户并开通智能点餐应用，开箱即用。
+
+
+Now seed a demo tenant subscribed to menu-ordering in main.py _seed, so the app works out of the box. Add to _seed after app_loader.load_apps().
+
+Note: tenant subscription requires the app to exist (loader loaded). Let me add:
+
+```python
+# 演示租户：智能点餐应用开箱可用
+if not app_tenants.get_tenant("demo-store"):
+    app_tenants.create_tenant({"tenant_id": "demo-store", "name": "示例餐厅（演示）", "status": "active"})
+if app_loader.get_app("menu-ordering"):
+    app_tenants.add_app("demo-store", "menu-ordering")
+```
+
+Let me add this to _seed.
+
+Now compile-check and restart backend, then run a full E2E verification:
+1. login admin
+2. check apps includes menu-ordering
+3. check demo-store tenant subscribed
+4. entry page 200
+5. user page loads menu (default_data seed)
+6. merchant auth with pin
+7. merchant creates a dish / updates
+8. user places order (order_process, approval blocks) — but via API this will block. Test with background & approve.
+9. merchant approves → order created in domain
+10. crew run via gateway (runCrew) with demand → recommendation
+
+Let me compile first.
+
+Restart backend to load the new app + tenant seed
+
+
+
+页面全部就绪。现在验证完整业务流：菜单播种 → 顾客下单（审批拦截）→ 商家审批 → 订单落域。
+
+
+
+
+All pages serve. Now test the full order flow with approval via API:
+1. User page data.list("menu") → should seed default menu (default_data)
+2. Merchant auth with pin
+3. User invokes order_process (approval required via manifest) — will block. Run in background.
+4. Merchant lists approvals → sees pending with tenant context
+5. Merchant approves → order_process completes → order in domain
+6. Merchant menu CRUD (update inventory)
+7. Crew run for recommendation
+
+Let me do the order flow. Note the order_process call blocks server-side until approval. I'll background it.
+
+商家管理通过。现在验证顾客下单→审批→完成闭环（order_process 需审批，请求会阻塞，需后台运行并批准）
+
+
+
+
+Menu seeded (6 dishes), wrong pin 403, merchant can add dish. Now the order flow: user invokes order_process (approval blocks). Run in background, then check pending approval, approve, verify order in domain.
+
+Let me run order_process in background.
+
+待审批记录已生成。现在商家批准，验证下单完成且订单落域。
+
+
+
+
+Pending approval created with tenant context. Now approve it, and verify the blocked order_process completes and order lands in domain.
+
+审批通过后下单完成：订单 #1 已创建。验证订单落域、库存扣减，以及用户端订单可见。
+
+
+
+
+
+订单落域、库存扣减正确。最后验证「智能推荐」编排全链路（gateway → crew → 租户感知工具 → 审批）。
+
+
+
+
+Order landed in domain, inventory decremented. Now verify the AI recommendation crew run through the gateway (runCrew with demand) — the crew uses tenant-aware tools. And also verify merchant order status update works.
+
+Let me test the crew run via gateway.
+
+编排已跑通并触发审批。批准后验证编排完成与终态输出。
+
+
+
+
+
+
+The crew run works: tools started/finished, order_process triggered approval with tenant attribution. Now approve it and verify the crew completes with a final result.
+
+全链路验证通过（订单 #2 由编排创建）。最后确认前端改动可构建。
+
+
+
+
+全链路验证通过：
+- 编排 run done=True，crew_result 正常输出
+- 订单 #2 由编排中的 order_process 创建（approved 后落域）
+
+阶段 4 的核心验收标准全部达成：
+- 商家开通租户并维护菜品 ✅（商家端 + 菜单 CRUD）
+- 顾客完成"智能推荐 → 下单 → 审批通过 → 订单可见"全流程 ✅
+
+现在让我检查前端是否能构建（vite build 或至少无语法错误）。前端只加了 Apps.jsx 页面。让我快速检查一下前端构建，确保没破坏。实际上用户没要求构建前端，且之前工作流已验证过前端。但为了稳妥，我应该确认 Apps.jsx 没有语法错误。让我用 node 快速检查语法，或者跑一次 vite build。
+
+让我检查是否有 node_modules。检查 package.json。
+
+前端构建通过。阶段 4 完成。
+
+
+前端构建成功。阶段 4 完成。让我更新 todo 并总结。
+
+所有验收标准达成：
+- 商家开通租户并维护菜品 ✅（商家端 H5 + PIN 登录 + 菜单 CRUD）
+- 顾客"智能推荐 → 下单 → 审批通过 → 订单可见"全流程 ✅
+
+让我标记所有 todo 完成并给出总结。todo list 是阶段0-3的，已经都完成了。让我更新 verify todo 状态——它已经是 completed。实际上阶段 4 没有专门的 todo 项。我可以用一次 TodoWrite 更新，添加阶段4完成状态。
+
+让我简单总结给用户，包含：
+1. 交付内容
+2. 验证结果
+3. 如何访问（用户端/商家端 URL）
+4. 注意事项
+
+保持简洁。
+
+阶段 4 完成，智能点餐应用已接入并端到端验证通过。
+
+## 交付内容
+
+**应用本体（独立 H5，托管于 `apps/hosted/menu-ordering/`）**
+- [app-manifest.json](file:///workspace/platform/backend/apps/hosted/menu-ordering/app-manifest.json) — 声明 5 个能力、绑定 `crew-menu-order` 编排、`order_process` 强制审批、`default_data` 菜单种子
+- [index.html](file:///workspace/platform/backend/apps/hosted/menu-ordering/public/index.html) — 用户端：浏览菜单（实时库存）、AI 智能推荐（跑编排）、购物车下单、订单状态轮询
+- [merchant.html](file:///workspace/platform/backend/apps/hosted/menu-ordering/public/merchant.html) — 商家端：口令登录、菜品 CRUD/库存、订单状态流转、审批处理
+
+**底座配套改动**
+- [tools.py](file:///workspace/platform/backend/plugins/menu_app/tools.py) — 工具改为**租户感知**（继承 `_TenantTool`），菜单/订单读写 `app_store` 数据域，与 H5 页面同一份数据
+- [crew_engine.py](file:///workspace/platform/backend/crew_engine.py) / [run_manager.py](file:///workspace/platform/backend/run_manager.py) — `build_tool` 注入租户上下文、支持 `force_approval`，贯穿到编排执行
+- [gateway.py](file:///workspace/platform/backend/apps/gateway.py) — 工具调用按 manifest 强制审批、`data_list` 按 `default_data` 自动播种、商家登录口令（默认 123456）
+- [main.py](file:///workspace/platform/backend/main.py) — 播种演示租户「示例餐厅（演示）」并开通应用，开箱可用
+
+## 端到端验证（全部通过）
+
+| 流程 | 结果 |
+|---|---|
+| 用户端访问 `/app/menu-ordering/demo-store` | ✅ 菜单自动播种 6 道菜 |
+| 商家口令登录（错误口令 403） | ✅ 正确口令签发商家 token |
+| 商家添加菜品「椒麻鸡」 | ✅ 写入租户数据域 |
+| 顾客下单（3 道菜）→ 审批拦截 | ✅ 生成 pending，带 `app/tenant` 归属 |
+| 商家审批通过 | ✅ 订单 #1 创建、库存扣减（12→11 等） |
+| 智能推荐（gateway→编排→工具→审批→终态） | ✅ 编排完成，订单 #2 由编排下单落域 |
+| 前端构建 | ✅ vite build 成功 |
+
+## 访问方式
+
+- 用户端：`http://localhost:8000/app/menu-ordering/demo-store`
+- 商家端：`http://localhost:8000/app/menu-ordering/demo-store/merchant.html`（口令 `123456`）
+- 后台应用中心：`/apps`（可新建租户、开通应用）
+
+说明：商家口令目前是环境变量 `CREWHUB_MERCHANT_PIN` 默认值，演示用途；生产应接入统一身份。第二个真实应用接入只需「manifest + H5 + SDK」三步，无需再改平台代码。

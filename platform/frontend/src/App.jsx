@@ -11,6 +11,7 @@ import Memory from "./pages/Memory.jsx";
 import Providers from "./pages/Providers.jsx";
 import Traces from "./pages/Traces.jsx";
 import Governance from "./pages/Governance.jsx";
+import Apps from "./pages/Apps.jsx";
 
 const NAV = [
   { id: "dashboard", label: "平台概览", icon: "◫", group: "总览" },
@@ -18,6 +19,7 @@ const NAV = [
   { id: "agents", label: "智能体配置", icon: "✧", group: "协作核心" },
   { id: "crews", label: "协作编排配置", icon: "⛓", group: "协作核心" },
   { id: "flows", label: "流程编排 Flows", icon: "◈", group: "协作核心" },
+  { id: "apps", label: "应用管理", icon: "▦", group: "协作核心" },
   { id: "tools", label: "工具库", icon: "🛠", group: "资产与能力" },
   { id: "knowledge", label: "知识库", icon: "▤", group: "资产与能力" },
   { id: "memory", label: "记忆管理", icon: "◔", group: "资产与能力" },
@@ -28,7 +30,7 @@ const NAV = [
 
 const PAGES = {
   dashboard: Dashboard, workbench: Workbench, agents: Agents, crews: Crews,
-  flows: Flows,
+  flows: Flows, apps: Apps,
   tools: Tools, knowledge: Knowledge, memory: Memory,
   providers: Providers, traces: Traces, governance: Governance,
 };
@@ -108,6 +110,7 @@ const PAGE_SUB = {
   agents: "定义身份、目标、模型与可用工具",
   crews: "组装智能体与任务，定义协作流程与运行输入",
   flows: "事件驱动工作流：顺序步骤 + 条件分支，逐步推进",
+  apps: "应用运行时：应用注册、能力、租户与统一入口",
   tools: "浏览与启用 CrewAI 工具能力",
   knowledge: "企业文档与知识资产（RAG）",
   memory: "作用域记忆的浏览与重置",
