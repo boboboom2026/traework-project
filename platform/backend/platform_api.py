@@ -186,6 +186,9 @@ def list_tools():
             "args": t.args_schema,
             "category": meta.get("category", "其他"),
             "real": bool(meta.get("real")),
+            "source": meta.get("source", "builtin"),
+            "status": meta.get("status", "ready"),
+            "note": meta.get("note", ""),
         })
     return {"tools": rows, "total": len(rows), "categories": sorted({r["category"] for r in rows})}
 

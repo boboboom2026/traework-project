@@ -18,6 +18,7 @@ from agent_framework import Agent, ApprovalGate, DataDomain, Tool
 
 import llm_client
 import retriever
+import crewai_tools_registry
 from platform_store import PlatformStore
 
 APPROVAL_TIMEOUT = 120  # 秒
@@ -150,18 +151,22 @@ _TOOL_CATALOG: List[tuple] = [
 ]
 
 TOOL_META: Dict[str, Dict[str, Any]] = {
-    name: {"category": cat, "real": real}
+    name: {"category": cat, "real": real, "source": "builtin"}
     for name, _desc, _func, _req, _tag, _args, cat, real in _TOOL_CATALOG
 }
+# 合并 CrewAI 官方工具适配层元数据
+TOOL_META.update(crewai_tools_registry.crewai_tool_meta())
 
 
 def build_tools() -> Dict[str, Tool]:
-    """构建平台工具目录：real=True 真实调用，False 为演示 stub。"""
-    return {
+    """构建平台工具目录：内置工具 + CrewAI 官方工具适配层。"""
+    tools: Dict[str, Tool] = {
         name: Tool(name=name, description=desc, func=func, args_schema=args,
                    requires_approval=req, action_tag=tag)
         for name, desc, func, req, tag, args, _cat, _real in _TOOL_CATALOG
     }
+    tools.update(crewai_tools_registry.build_crewai_tools())
+    return tools
 
 
 # ------------------- 引擎 -------------------
