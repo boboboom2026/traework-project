@@ -16,7 +16,6 @@ from typing import Any, Callable, Dict, List, Optional
 from agent_framework import Agent, ApprovalGate, DataDomain, Tool
 
 import llm_client
-from demo_llm import DemoLLM
 from platform_store import PlatformStore
 
 APPROVAL_TIMEOUT = 120  # 秒
@@ -76,7 +75,6 @@ def build_tools() -> Dict[str, Tool]:
 class CrewRunEngine:
     def __init__(self, store: PlatformStore):
         self.store = store
-        self.llm = DemoLLM()
         self.domain: DataDomain = store.domain
         self.gate = ApprovalGate(self.domain, timeout=APPROVAL_TIMEOUT, poll_interval=POLL_INTERVAL)
         self.tools_raw = build_tools()
@@ -173,12 +171,17 @@ class CrewRunEngine:
                   "avatar": agent_cfg.get("avatar", "🤖"), "role": agent_cfg.get("role", ""),
                   "task": task_cfg.get("description", "")})
 
-            # 1) 思考过程（流式）：真实提供商走 litellm，失败自动回退演示模型
+            # 1) 思考过程（流式）：调用智能体绑定的真实模型；未绑定或调用失败则明确报错，不静默兜底
             thinking = ""
             provider_rec = None
-            if agent_cfg.get("provider_id"):
-                provider_rec = self.store.get("llm_providers", agent_cfg["provider_id"])
-            if provider_rec and llm_client.is_real(provider_rec):
+            pid = agent_cfg.get("provider_id") or ""
+            if pid:
+                provider_rec = self.store.get("llm_providers", pid)
+            if provider_rec is None:
+                err = f"智能体「{agent_cfg['name']}」未绑定有效的模型提供商，请先在 LLM 提供商页配置并绑定"
+                emit({"type": "llm_error", "agent": agent_cfg["name"], "message": err})
+                thinking = err
+            else:
                 system = (
                     f"你是「{agent_cfg['name']}」（角色：{agent_cfg.get('role', '')}）。\n"
                     f"目标：{agent_cfg.get('goal', '')}\n"
@@ -196,16 +199,9 @@ class CrewRunEngine:
                     emit({"type": "model_call", "agent": agent_cfg["name"],
                           "provider": provider_rec.get("name"), "status": "done"})
                 except Exception as exc:  # noqa: BLE001
-                    emit({"type": "llm_error", "agent": agent_cfg["name"], "message": str(exc)[:300]})
-                    for chunk in self.llm.stream(agent_cfg.get("role", ""),
-                                                 task_cfg.get("description", ""), input_text):
-                        thinking += chunk
-                        emit({"type": "chunk", "agent": agent_cfg["name"], "text": chunk})
-            else:
-                for chunk in self.llm.stream(agent_cfg.get("role", ""),
-                                             task_cfg.get("description", ""), input_text):
-                    thinking += chunk
-                    emit({"type": "chunk", "agent": agent_cfg["name"], "text": chunk})
+                    err = f"模型调用失败：{str(exc)[:300]}"
+                    thinking = err
+                    emit({"type": "llm_error", "agent": agent_cfg["name"], "message": err})
 
             # 2) 工具调用（暂演示首个工具）
             tool_out = ""

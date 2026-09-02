@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """真实模型网关：基于 litellm 统一路由多提供商（OpenAI / Anthropic / Gemini / Azure / Bedrock / 兼容接口）。
 
-演示模型（provider == "demo"）不经过本模块；其余提供商均走 litellm，
 支持 base_url + api_key 的自定义兼容端点（DeepSeek / 通义 / 智谱 / Kimi 等均可）。
 """
 from __future__ import annotations
@@ -12,11 +11,6 @@ litellm.suppress_debug_info = True
 litellm.drop_params = True  # 忽略不支持的参数（如部分兼容接口的 max_tokens 差异）
 
 from typing import Any, Dict, Iterator
-
-
-def is_real(provider: Dict[str, Any]) -> bool:
-    """是否为真实模型提供商（区别于内置演示模型）。"""
-    return bool(provider) and (provider.get("provider") or "demo") != "demo"
 
 
 def _model(provider: Dict[str, Any]) -> str:

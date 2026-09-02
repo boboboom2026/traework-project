@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { del, get, post, put } from "../api.js";
 
-const PROV_ICON = { demo: "🧪", openai: "🔷", anthropic: "✳️", gemini: "🔮", azure: "☁️", bedrock: "🏝", snowflake: "❄️", openai_compatible: "🔌", custom: "🔌" };
+const PROV_ICON = { openai: "🔷", anthropic: "✳️", gemini: "🔮", azure: "☁️", bedrock: "🏝", snowflake: "❄️", openai_compatible: "🔌", custom: "🔌", deepseek: "⚡" };
 
 export default function Providers() {
   const [providers, setProviders] = useState([]);
@@ -54,18 +54,16 @@ export default function Providers() {
             <div className="role">{p.provider}/{p.model} · temperature={p.temperature}</div>
             <div className="role" style={{ color: "var(--dim)" }}>{p.notes || (p.base_url ? `Base URL：${p.base_url}` : "未填写 Base URL")}</div>
             <div className="ft">
-              <span style={{ fontSize: 12, color: "var(--muted)" }}>{p.api_key ? "🔑 已填凭据" : "无凭据（演示模式）"}</span>
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>{p.api_key ? "🔑 已填凭据" : "未填 Key（可编辑补充）"}</span>
               <span>
-                {p.provider !== "demo" && (
-                  <button className="btn green sm" disabled={testState[p.id]?.testing} onClick={() => testConn(p)}>
-                    {testState[p.id]?.testing ? "测试中…" : "连接测试"}
-                  </button>
-                )}
+                <button className="btn green sm" disabled={testState[p.id]?.testing} onClick={() => testConn(p)}>
+                  {testState[p.id]?.testing ? "测试中…" : "连接测试"}
+                </button>
                 <button className="btn ghost sm" onClick={() => setEditing({ ...p })}>编辑</button>
                 {!p.builtin && <button className="btn ghost sm" style={{ color: "var(--danger)" }} onClick={() => { if (confirm("删除该提供商？")) del(`/api/llm-providers/${p.id}`).then(load); }}>删除</button>}
               </span>
             </div>
-            {testState[p.id] && !testState[p.id].testing && p.provider !== "demo" && (
+            {testState[p.id] && !testState[p.id].testing && (
               <div style={{ fontSize: 12.5, color: testState[p.id].ok ? "var(--ok)" : "var(--danger)", borderTop: "1px dashed var(--border)", paddingTop: 8, wordBreak: "break-all" }}>
                 {testState[p.id].ok ? `✓ 连接成功 · 模型回复：${testState[p.id].text}` : `✗ 连接失败：${testState[p.id].text}`}
               </div>
@@ -86,14 +84,13 @@ export default function Providers() {
               <div className="field">
                 <label>提供商类型</label>
                 <select className="input" name="provider" defaultValue={editing.provider || "openai_compatible"}>
-                  <option value="demo">演示模型（内置，无需 Key）</option>
+                  <option value="openai_compatible">OpenAI 兼容接口（DeepSeek/通义/智谱等）</option>
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
                   <option value="gemini">Gemini</option>
                   <option value="azure">Azure OpenAI</option>
                   <option value="bedrock">AWS Bedrock</option>
                   <option value="snowflake">Snowflake</option>
-                  <option value="openai_compatible">OpenAI 兼容接口</option>
                 </select>
               </div>
             </div>
@@ -112,9 +109,9 @@ export default function Providers() {
               <input className="input" name="base_url" defaultValue={editing.base_url} placeholder="https://api.example.com/v1" />
             </div>
             <div className="field">
-              <label>API Key（仅引用，不落明文展示）</label>
+              <label>API Key</label>
               <input className="input" name="api_key" type="password" defaultValue={editing.api_key} placeholder="sk-…" />
-              <div className="hint">演示模型无需 Key；接入真实模型时在此填写，平台引用凭据、不落明文。</div>
+              <div className="hint">平台仅引用凭据、不落明文展示；填写后可用「连接测试」验证连通性。</div>
             </div>
             <div className="ft">
               <button type="button" className="btn" onClick={() => setEditing(null)}>取消</button>

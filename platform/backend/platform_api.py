@@ -158,8 +158,6 @@ def test_provider(pid: str, payload: Dict[str, Any] = Body(default={})):
     if base is None:
         raise HTTPException(404, "提供商不存在")
     merged = {**base, **{k: v for k, v in (payload or {}).items() if v not in (None, "")}}
-    if not llm_client.is_real(merged):
-        return {"ok": True, "message": "演示模型内置可用，无需连接测试"}
     return llm_client.test_completion(merged)
 
 

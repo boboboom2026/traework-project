@@ -103,7 +103,7 @@ export default function Workbench({ onNav }) {
             break;
           }
           case "llm_error": {
-            pushLog(`✗ ${ev.agent} 真实模型调用失败，已自动回退演示模型：${ev.message}`);
+            pushLog(`✗ ${ev.agent}：${ev.message}`);
             break;
           }
           case "approval":
