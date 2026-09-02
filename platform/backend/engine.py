@@ -255,10 +255,14 @@ class CrewRunEngine:
         if not docs:
             return []
         query = f"{task_cfg.get('description', '')} {input_text}"
-        hits = retriever.search(query, docs, top_k=3)
+        prov = retriever.pick_embedding_provider(self.store.all("llm_providers"))
+        qv = retriever.embed_query(query, prov) or retriever.embed(query)
+        hits = retriever.search_docs(query, qv, docs, top_k=3)
+        embed_mode = ("embedding" if isinstance(qv, list) else "local-hash")
         emit({"type": "knowledge_retrieved", "agent": agent_cfg["name"],
               "task": task_cfg.get("title", ""), "query": query[:80],
               "scope": "task/绑定" if task_kids else ("agent/绑定" if agent_kids else "全库"),
+              "embed_mode": embed_mode,
               "hit_count": len(hits),
               "docs": [{"doc_name": h["doc_name"], "score": h["score"], "kind": h["kind"]} for h in hits]})
         return [

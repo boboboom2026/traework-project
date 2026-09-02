@@ -40,7 +40,8 @@ export default function Knowledge({ onNav, items, reload }) {
               <span className={"tag " + (d.status === "已嵌入" ? "ok" : "warn")}>{d.status}</span>
               {d.chunk_count > 0 && <span className="tag info">{d.chunk_count} 个分块</span>}
             </div>
-            <div className="s">来源：{d.source || "直接上传"} · {d.created_at}</div>
+            <div className="s">来源：{d.source || "直接上传"} · {d.created_at}
+              {d.embed_status ? ` · ${d.embed_status}` : ""}</div>
             {d.content && <div className="s" style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{(d.content || "").slice(0, 160)}{(d.content || "").length > 160 ? "…" : ""}</div>}
           </div>
           <button className="btn ghost sm" style={{ color: "var(--danger)" }} onClick={() => { if (confirm("删除该文档？")) del(`/api/knowledge/${d.id}`).then(refresh); }}>移除</button>

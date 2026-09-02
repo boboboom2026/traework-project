@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-"""轻量知识检索（RAG 检索端）：本地哈希嵌入 + 余弦相似度，零外部依赖。
+"""知识检索（RAG 检索端）：真实 embedding provider + 本地哈希双轨。
 
-没有接入向量数据库 / embedding API 时也能离线工作：
-- tokenize：英文按单词、中文按双字 bigram 切分
-- embed：词频加权稀疏向量 + L2 归一化（哈希嵌入）
-- search：query 向量与文档分块向量的余弦相似度，返回 top-k
+- 配置了 embedding provider（kind=embedding）时：query/文档块由外部嵌入 API 生成稠密向量，
+  余弦相似度检索；文档向量在写入时预计算并缓存（vectors 字段），运行期零额外请求。
+- 未配置或调用失败时：自动回退本地哈希嵌入（英文单词 + 中文 bigram 的稀疏向量），离线可用。
 
-后续若接入 embedding provider（如 OpenAI / SiliconFlow），可平滑替换其中的 embed()。
+分词与分块逻辑与嵌入方式解耦，两种模式共用。
 """
 from __future__ import annotations
 
@@ -14,6 +13,8 @@ import math
 import re
 import unicodedata
 from typing import Any, Dict, List, Optional
+
+import llm_client
 
 _EN_RE = re.compile(r"[a-z0-9_]+")
 _EN_STOP = {
@@ -45,7 +46,7 @@ def tokenize(text: str) -> List[str]:
 
 
 def embed(text: str) -> Dict[str, float]:
-    """哈希嵌入：词频向量经 L2 归一化（稀疏 dict 存储）。"""
+    """本地哈希嵌入（回退方案）：词频向量经 L2 归一化（稀疏 dict 存储）。"""
     vec: Dict[str, float] = {}
     for tok in tokenize(text):
         vec[tok] = vec.get(tok, 0.0) + 1.0
@@ -53,9 +54,12 @@ def embed(text: str) -> Dict[str, float]:
     return {k: v / norm for k, v in vec.items()}
 
 
-def _cosine(a: Dict[str, float], b: Dict[str, float]) -> float:
+def _dot(a: Any, b: Any) -> float:
+    """余弦（等价点积，两向量均已归一化）：稠密 list 或稀疏 dict 点积。"""
     if not a or not b:
         return 0.0
+    if isinstance(a, list):
+        return sum(x * y for x, y in zip(a, b))
     small, large = (a, b) if len(a) <= len(b) else (b, a)
     return sum(w * large.get(k, 0.0) for k, w in small.items())
 
@@ -78,35 +82,46 @@ def chunk_text(text: str, size: int = _CHUNK_SIZE, overlap: int = _CHUNK_OVERLAP
     return chunks or [""]
 
 
-def build_entries(docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """把知识文档转换为可检索的分块条目（每块一个向量）。"""
-    entries: List[Dict[str, Any]] = []
-    for d in docs:
-        content = d.get("content") or ""
+def pick_embedding_provider(providers: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """从 llm_providers 中选取嵌入用途提供商（kind=embedding，优先已填 Key 的）。"""
+    emb = [p for p in (providers or []) if p.get("kind") == "embedding" and p.get("model")]
+    emb.sort(key=lambda p: 0 if p.get("api_key") else 1)
+    return emb[0] if emb else None
+
+
+def embed_query(query: str, provider: Optional[Dict[str, Any]]) -> Any:
+    """Query 向量化：有 embedding provider 用真实嵌入，失败/未配置返回 None（由调用方回退本地）。"""
+    if provider:
+        try:
+            return llm_client.embed_texts(provider, [query])[0]
+        except Exception:  # noqa: BLE001
+            return None
+    return None
+
+
+def search_docs(query_text: str, query_vec: Any, docs: List[Dict[str, Any]],
+                top_k: int = 3, min_score: float = 0.02) -> List[Dict[str, Any]]:
+    """相似度检索：稠密向量优先（文档写入时预计算缓存），否则回退本地哈希。"""
+    q_dense = query_vec if isinstance(query_vec, list) else None
+    q_local = query_vec if isinstance(query_vec, dict) else embed(query_text)
+    hits: List[Dict[str, Any]] = []
+    for doc in docs:
+        content = doc.get("content") or ""
         if not content.strip():
             continue
-        for idx, chunk in enumerate(chunk_text(content)):
-            entries.append({
-                "doc_id": d["id"], "doc_name": d.get("name", ""), "kind": d.get("kind", ""),
-                "idx": idx, "text": chunk, "vec": embed(chunk),
+        chunks = chunk_text(content)
+        stored = doc.get("vectors")
+        use_dense = q_dense is not None and isinstance(stored, list) and len(stored) == len(chunks)
+        for i, chunk in enumerate(chunks):
+            if use_dense:
+                score = _dot(q_dense, [float(x) for x in stored[i]])
+            else:
+                score = _dot(q_local, embed(chunk))
+            if score < min_score:
+                continue
+            hits.append({
+                "doc_id": doc["id"], "doc_name": doc.get("name", ""), "kind": doc.get("kind", ""),
+                "score": round(float(score), 3), "text": chunk[:_MAX_SNIPPET],
             })
-    return entries
-
-
-def search(query: str, docs: List[Dict[str, Any]], top_k: int = 3,
-           min_score: float = 0.02) -> List[Dict[str, Any]]:
-    """基于哈希嵌入的余弦相似度检索，返回按相关度降序的片段列表。"""
-    qv = embed(query)
-    if not qv:
-        return []
-    hits: List[Dict[str, Any]] = []
-    for e in build_entries(docs):
-        score = _cosine(qv, e["vec"])
-        if score < min_score:
-            continue
-        hits.append({
-            "doc_id": e["doc_id"], "doc_name": e["doc_name"], "kind": e["kind"],
-            "score": round(float(score), 3), "text": e["text"][:_MAX_SNIPPET],
-        })
     hits.sort(key=lambda h: h["score"], reverse=True)
     return hits[:top_k]

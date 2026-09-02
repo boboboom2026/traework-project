@@ -7,7 +7,9 @@
     "id": "e53fe596",
     "created_at": "2026-09-02 17:51:55",
     "chunk_count": 1,
-    "status": "已嵌入"
+    "status": "已嵌入",
+    "vectors": null,
+    "embed_status": "本地哈希索引"
   },
   {
     "name": "公司差旅报销制度",
@@ -17,6 +19,8 @@
     "id": "fd8224dd",
     "created_at": "2026-09-02 17:51:55",
     "chunk_count": 1,
-    "status": "已嵌入"
+    "status": "已嵌入",
+    "vectors": null,
+    "embed_status": "本地哈希索引"
   }
 ]

@@ -27,6 +27,7 @@ export default function Providers() {
     const rec = {
       name: fd.get("name"), provider: fd.get("provider"), model: fd.get("model"),
       api_key: fd.get("api_key"), base_url: fd.get("base_url"),
+      kind: fd.get("kind") || "chat",
       temperature: Number(fd.get("temperature") || 0.2),
     };
     try {
@@ -49,6 +50,7 @@ export default function Providers() {
             <div className="hd">
               <div className="nm"><span className="em">{PROV_ICON[p.provider] || "🔌"}</span>{p.name}
                 {p.builtin && <span className="tag info">内置</span>}
+                <span className={"tag " + (p.kind === "embedding" ? "warn" : "neutral")}>{p.kind === "embedding" ? "嵌入模型" : "对话模型"}</span>
               </div>
             </div>
             <div className="role">{p.provider}/{p.model} · temperature={p.temperature}</div>
@@ -82,6 +84,16 @@ export default function Providers() {
                 <input className="input" name="name" required defaultValue={editing.name} placeholder="如：公司 GPT-4o" />
               </div>
               <div className="field">
+                <label>用途类型</label>
+                <select className="input" name="kind" defaultValue={editing.kind || "chat"}>
+                  <option value="chat">对话模型 chat（智能体推理）</option>
+                  <option value="embedding">嵌入模型 embedding（知识库 RAG）</option>
+                </select>
+                <div className="hint">嵌入模型用于知识库向量化与检索；配置后新增/更新文档自动真实嵌入。</div>
+              </div>
+            </div>
+            <div className="row">
+              <div className="field">
                 <label>提供商类型</label>
                 <select className="input" name="provider" defaultValue={editing.provider || "openai_compatible"}>
                   <option value="openai_compatible">OpenAI 兼容接口（DeepSeek/通义/智谱等）</option>
@@ -97,11 +109,12 @@ export default function Providers() {
             <div className="row">
               <div className="field">
                 <label>模型（model）</label>
-                <input className="input" name="model" required defaultValue={editing.model} placeholder="如：gpt-4o / demo/chat" />
+                <input className="input" name="model" required defaultValue={editing.model} placeholder="对话：gpt-4o；嵌入：text-embedding-3-small / bge-m3" />
               </div>
               <div className="field">
                 <label>Temperature</label>
                 <input className="input" name="temperature" type="number" step="0.1" min={0} max={2} defaultValue={editing.temperature ?? 0.2} />
+                <div className="hint">仅对话模型生效，嵌入模型可忽略。</div>
               </div>
             </div>
             <div className="field">

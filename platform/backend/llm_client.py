@@ -10,7 +10,7 @@ import litellm  # noqa: F401  确保导入即触发环境检查
 litellm.suppress_debug_info = True
 litellm.drop_params = True  # 忽略不支持的参数（如部分兼容接口的 max_tokens 差异）
 
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, List
 
 
 def _model(provider: Dict[str, Any]) -> str:
@@ -88,5 +88,40 @@ def test_completion(provider: Dict[str, Any], timeout: int = 25) -> Dict[str, An
         except Exception:  # noqa: BLE001
             content = str(resp)[:80]
         return {"ok": True, "reply": content.strip()[:80]}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc)[:300]}
+
+
+def embed_texts(provider: Dict[str, Any], texts: List[str], timeout: int = 90) -> List[List[float]]:
+    """真实嵌入：调用 embedding provider（OpenAI 兼容协议）返回稠密向量列表。"""
+    kw: Dict[str, Any] = {}
+    if provider.get("api_key"):
+        kw["api_key"] = provider["api_key"]
+    if provider.get("base_url"):
+        kw["api_base"] = provider["base_url"]
+    resp = litellm.embedding(
+        model=_model(provider),
+        input=texts,
+        timeout=timeout,
+        **kw,
+    )
+    vectors: List[List[float]] = []
+    for item in resp.data or []:
+        # liteLLM 对 OpenAI 兼容协议返回 dict，原生 provider 可能是对象
+        emb = item.get("embedding") if isinstance(item, dict) else getattr(item, "embedding", None)
+        if emb is None:
+            raise ValueError("嵌入响应缺少 embedding 字段")
+        vectors.append(list(map(float, emb)))
+    if not vectors or len(vectors) != len(texts):
+        raise ValueError(f"嵌入响应数量不符（期望 {len(texts)}，实际 {len(vectors)}）")
+    return vectors
+
+
+def test_embedding(provider: Dict[str, Any], timeout: int = 30) -> Dict[str, Any]:
+    """嵌入连接测试：对极短文本调用嵌入接口，返回维度等结构化结果。"""
+    try:
+        vecs = embed_texts(provider, ["嵌入测试"], timeout=timeout)
+        dim = len(vecs[0])
+        return {"ok": True, "reply": f"嵌入成功 · 维度 {dim}", "dim": dim}
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "error": str(exc)[:300]}

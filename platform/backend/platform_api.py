@@ -141,6 +141,7 @@ def create_provider(payload: Dict[str, Any] = Body(...)):
     rec = dict(payload)
     rec["id"] = rec.get("id") or _new_id()
     rec.setdefault("builtin", False)
+    rec.setdefault("kind", "chat")
     return _store.save("llm_providers", rec)
 
 
@@ -154,11 +155,13 @@ def update_provider(pid: str, payload: Dict[str, Any] = Body(...)):
 
 @router.post("/llm-providers/{pid}/test")
 def test_provider(pid: str, payload: Dict[str, Any] = Body(default={})):
-    """连接测试：用已存配置（可临时覆盖 api_key/base_url/model）发起一次最小请求。"""
+    """连接测试：对话提供商走最小 completion；嵌入提供商（kind=embedding）走嵌入接口。"""
     base = _store.get("llm_providers", pid)
     if base is None:
         raise HTTPException(404, "提供商不存在")
     merged = {**base, **{k: v for k, v in (payload or {}).items() if v not in (None, "")}}
+    if merged.get("kind") == "embedding":
+        return llm_client.test_embedding(merged)
     return llm_client.test_completion(merged)
 
 
@@ -310,11 +313,34 @@ def list_traces():
 
 
 # =================== 知识库（Knowledge + RAG） ===================
+def _embedding_provider() -> Optional[Dict[str, Any]]:
+    """当前可用的嵌入提供商（kind=embedding），无则 None（走本地哈希回退）。"""
+    return retriever.pick_embedding_provider(_store.all("llm_providers"))
+
+
 def _reindex(rec: Dict[str, Any]) -> None:
-    """写入前自动分块并标记索引状态（本地哈希嵌入，离线可用）。"""
+    """写入前分块并向量化：有 embedding provider 用真实嵌入（vectors 缓存），否则本地哈希。"""
     content = (rec.get("content") or "").strip()
-    rec["chunk_count"] = len(retriever.chunk_text(content)) if content else 0
-    rec["status"] = "已嵌入" if content else "待嵌入"
+    chunks = retriever.chunk_text(content) if content else []
+    rec["chunk_count"] = len(chunks)
+    rec["vectors"] = None
+    if content:
+        prov = _embedding_provider()
+        vecs = None
+        if prov:
+            try:
+                vecs = llm_client.embed_texts(prov, chunks)
+            except Exception:  # noqa: BLE001  嵌入失败回退本地索引
+                vecs = None
+        if vecs is not None:
+            rec["vectors"] = vecs
+            rec["embed_status"] = f"真实嵌入 {prov.get('name', '')}/{prov.get('model', '')}"
+        else:
+            rec["embed_status"] = "本地哈希索引"
+        rec["status"] = "已嵌入"
+    else:
+        rec["embed_status"] = "待嵌入"
+        rec["status"] = "待嵌入"
 
 
 @router.get("/knowledge")
@@ -350,13 +376,16 @@ def delete_knowledge(kid: str):
 
 @router.get("/knowledge/search")
 def search_knowledge(q: str = "", ids: str = "", top_k: int = 3):
-    """RAG 检索测试：对知识库（可按 ids 限定范围）执行相似度检索。"""
+    """RAG 检索测试：对知识库（可按 ids 限定范围）执行相似度检索（真实嵌入 / 本地哈希均可）。"""
     docs = _store.all("knowledge")
     if ids:
         id_set = {x for x in ids.split(",") if x}
         docs = [d for d in docs if d["id"] in id_set]
-    hits = retriever.search(q, docs, top_k=max(1, min(top_k, 10)))
-    return {"query": q, "total": len(hits), "hits": hits}
+    prov = _embedding_provider()
+    qv = retriever.embed_query(q, prov) or retriever.embed(q)
+    hits = retriever.search_docs(q, qv, docs, top_k=max(1, min(top_k, 10)))
+    mode = f"embedding/{prov.get('model')}" if (isinstance(qv, list) and prov) else "local-hash"
+    return {"query": q, "total": len(hits), "hits": hits, "embed_mode": mode}
 
 
 # =================== 记忆 ===================
