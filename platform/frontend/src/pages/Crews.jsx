@@ -21,12 +21,14 @@ export default function Crews({ onNav }) {
     const agentsA = fd.getAll("task_agent");
     const descs = fd.getAll("task_desc");
     const exps = fd.getAll("task_exp");
+    const ctxs = fd.getAll("task_ctx");
     for (let i = 0; i < titles.length; i++) {
       if (!titles[i].trim()) continue;
       tasks.push({
         id: editing.tasks?.[i]?.id || ("t-" + Date.now() + i),
         title: titles[i], agent_name: agentsA[i],
         description: descs[i], expected_output: exps[i],
+        use_upstream: ctxs[i] === "on",
       });
     }
     const rec = {
@@ -68,6 +70,7 @@ export default function Crews({ onNav }) {
                     <span style={{ color: "var(--dim)" }}>{i + 1}.</span>
                     <b>{t.title}</b>
                     <span style={{ color: "var(--muted)" }}>→ {t.agent_name}</span>
+                    {t.use_upstream && <span className="tag info">⛓ 引用上游</span>}
                   </div>
                 ))}
               </div>
@@ -141,6 +144,10 @@ function CrewEditor({ agents, editing, onClose, onSubmit }) {
                 <label>期望输出（expected_output）</label>
                 <input className="input" name="task_exp" defaultValue={t.expected_output} />
               </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, marginTop: 8, color: "var(--muted)", cursor: "pointer" }}>
+                <input type="checkbox" name="task_ctx" defaultChecked={!!t.use_upstream} />
+                ⛓ 引用所有上游任务输出（context 串联：把前序任务成果作为本任务上下文）
+              </label>
               <div style={{ textAlign: "right", marginTop: 8 }}>
                 <button type="button" className="btn ghost sm" style={{ color: "var(--danger)" }} onClick={() => setTasks(tasks.filter((_, j) => j !== i))}>移除任务</button>
               </div>
@@ -174,10 +181,19 @@ function CrewEditor({ agents, editing, onClose, onSubmit }) {
 
 function PreviewModal({ crew, onClose }) {
   const steps = (crew.tasks || []).map((t) => t.agent_name);
+  const hierarchical = crew.process === "hierarchical";
   return (
     <div className="modal-mask" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>流程预览 · {crew.name}</h2>
+        {hierarchical && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span className="tag info">层级编排</span>
+            <span style={{ fontSize: 12.5, color: "var(--muted)" }}>
+              由管理者统筹规划 → 逐一委派成员执行 → 管理者汇总最终结论
+            </span>
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
           {(crew.tasks || []).map((t, i) => (
             <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -185,13 +201,15 @@ function PreviewModal({ crew, onClose }) {
               <div style={{ textAlign: "center", background: "var(--bg2)", border: "1px solid var(--border2)", borderRadius: 12, padding: "10px 14px" }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{t.agent_name}</div>
                 <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 2 }}>{t.title}</div>
+                {t.use_upstream && <div style={{ fontSize: 10.5, color: "var(--info)", marginTop: 4 }}>⛓ 引用上游上下文</div>}
               </div>
             </div>
           ))}
           {!steps.length && <div className="empty">暂无任务</div>}
         </div>
         <div style={{ fontSize: 12.5, color: "var(--muted)", lineHeight: 1.8 }}>
-          <b style={{ color: "var(--text)" }}>执行说明：</b>按「{crew.description || crew.name}」顺序执行
+          <b style={{ color: "var(--text)" }}>执行说明：</b>
+          {hierarchical ? "层级委派：管理者先规划分工，任务依次委派执行，最后汇总为管理层结论。" : "顺序执行：按任务链依次执行。"}
           {(crew.tasks || []).map((t, i) => (
             <div key={t.id} style={{ marginTop: 4 }}>
               {i + 1}. {t.description || t.title}{t.expected_output ? `（${t.expected_output}）` : ""}

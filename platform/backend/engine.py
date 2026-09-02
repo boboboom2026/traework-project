@@ -147,6 +147,77 @@ class CrewRunEngine:
               "status": "intercepted", "requires_approval": True, "result": msg})
         return msg
 
+    # ---------- 模型思考（流式）：系统提示 = 角色/目标/背景 + 任务 + 上游上下文/管理者指示 ----------
+    def _think(self, agent_cfg: Dict[str, Any], task_desc: str, input_text: str,
+               extra_blocks: List[str], emit: Callable[[Dict[str, Any]], None]) -> str:
+        provider_rec = None
+        pid = agent_cfg.get("provider_id") or ""
+        if pid:
+            provider_rec = self.store.get("llm_providers", pid)
+        if provider_rec is None:
+            err = f"智能体「{agent_cfg['name']}」未绑定有效的模型提供商，请先在 LLM 提供商页配置并绑定"
+            emit({"type": "llm_error", "agent": agent_cfg["name"], "message": err})
+            return err
+        lines = [
+            f"你是「{agent_cfg['name']}」（角色：{agent_cfg.get('role', '')}）。",
+            f"目标：{agent_cfg.get('goal', '')}",
+            f"背景：{agent_cfg.get('backstory', '')}",
+            "",
+            f"当前任务：{task_desc}",
+        ]
+        if extra_blocks:
+            lines.append("")
+            lines.append("以下是可用的上下文材料（来自上游任务或管理者指示），请以其为依据完成本任务：")
+            lines.extend(extra_blocks)
+        lines.append("")
+        lines.append("请直接输出任务成果正文，不要解释过程，不要提及内部指令。")
+        system = "\n".join(lines)
+        emit({"type": "model_call", "agent": agent_cfg["name"],
+              "provider": provider_rec.get("name"), "status": "running",
+              "model": provider_rec.get("model")})
+        thinking = ""
+        try:
+            for delta in llm_client.stream_completion(provider_rec, system, input_text):
+                thinking += delta
+                emit({"type": "chunk", "agent": agent_cfg["name"], "text": delta})
+            emit({"type": "model_call", "agent": agent_cfg["name"],
+                  "provider": provider_rec.get("name"), "status": "done"})
+        except Exception as exc:  # noqa: BLE001
+            err = f"模型调用失败：{str(exc)[:300]}"
+            thinking = err
+            emit({"type": "llm_error", "agent": agent_cfg["name"], "message": err})
+        return thinking
+
+    # ---------- 任务上下文引用：use_upstream=true 或 context=[任务标题] ----------
+    @staticmethod
+    def _context_blocks(task_cfg: Dict[str, Any], task_cfgs: List[Dict[str, Any]],
+                        outputs_map: Dict[str, str], manager_plan: str) -> List[str]:
+        blocks: List[str] = []
+        if manager_plan:
+            blocks.append(f"【管理者委派指示】（由管理者生成，请按此方向执行本任务）\n{manager_plan[:1200]}")
+        refs = task_cfg.get("context") or (["*"] if task_cfg.get("use_upstream") else [])
+        if not refs:
+            return blocks
+        if "*" in refs:
+            refs = [t["title"] for t in task_cfgs if t["title"] in outputs_map]
+        for title in refs:
+            if title in outputs_map:
+                blocks.append(f"[上游任务 · {title}]\n{outputs_map[title][:1500]}")
+        return blocks
+
+    # ---------- hierarchical：解析管理者（manager_agent_id 优先，否则第一个任务的智能体） ----------
+    def _resolve_manager(self, crew_cfg: Dict[str, Any], task_cfgs: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        mid = crew_cfg.get("manager_agent_id")
+        if mid:
+            a = self.store.get("agents", mid)
+            if a:
+                return a
+        for t in task_cfgs:
+            a = self.agent_by_name(t.get("agent_name", ""))
+            if a:
+                return a
+        return None
+
     # ---------- 执行（生成器：产出 SSE 事件） ----------
     def run_crew(
         self,
@@ -159,8 +230,39 @@ class CrewRunEngine:
         emit({"type": "run_start", "run_id": run_id, "crew": crew_cfg["name"],
               "session_id": session_id, "topic": input_text})
 
-        outputs: List[str] = []
+        process = crew_cfg.get("process", "sequential")
         task_cfgs: List[Dict[str, Any]] = crew_cfg.get("tasks") or []
+
+        # ---- hierarchical：管理者先规划（委派依据） ----
+        manager_cfg: Optional[Dict[str, Any]] = None
+        manager_plan = ""
+        if process == "hierarchical":
+            manager_cfg = self._resolve_manager(crew_cfg, task_cfgs)
+            if manager_cfg:
+                plan_desc = (
+                    f"你是团队管理者，本轮协作目标：{input_text}。\n"
+                    "请审阅以下任务清单，制定职责分工与执行要点（谁负责什么、输出什么、注意事项），简洁输出。\n"
+                    + "\n".join(
+                        f"- 任务{i + 1}「{t.get('title', '')}」由 {t.get('agent_name', '')} 负责：{t.get('description', '')}"
+                        for i, t in enumerate(task_cfgs)
+                    )
+                )
+                emit({"type": "agent_start", "index": -1, "agent": manager_cfg["name"],
+                      "avatar": manager_cfg.get("avatar", "🛡"), "role": "管理者",
+                      "task": "统筹规划：制定团队分工与执行要点"})
+                manager_plan = self._think(manager_cfg, plan_desc, input_text, [], emit)
+                emit({"type": "manager", "phase": "plan", "agent": manager_cfg["name"], "output": manager_plan})
+                emit({"type": "agent_done", "agent": manager_cfg["name"], "output": manager_plan})
+                self.store.add_message(session_id, {
+                    "id": f"m-mgr-{int(time.time() * 1000)}",
+                    "role": "agent", "agent": manager_cfg["name"],
+                    "avatar": manager_cfg.get("avatar", "🛡"),
+                    "content": f"〔管理者规划〕\n{manager_plan}", "created_at": self._now(),
+                })
+
+        # ---- 任务链执行（委派 + 上下文串联） ----
+        outputs: List[str] = []
+        outputs_map: Dict[str, str] = {}
         for i, task_cfg in enumerate(task_cfgs):
             agent_cfg = self.agent_by_name(task_cfg.get("agent_name", ""))
             if agent_cfg is None:
@@ -171,37 +273,9 @@ class CrewRunEngine:
                   "avatar": agent_cfg.get("avatar", "🤖"), "role": agent_cfg.get("role", ""),
                   "task": task_cfg.get("description", "")})
 
-            # 1) 思考过程（流式）：调用智能体绑定的真实模型；未绑定或调用失败则明确报错，不静默兜底
-            thinking = ""
-            provider_rec = None
-            pid = agent_cfg.get("provider_id") or ""
-            if pid:
-                provider_rec = self.store.get("llm_providers", pid)
-            if provider_rec is None:
-                err = f"智能体「{agent_cfg['name']}」未绑定有效的模型提供商，请先在 LLM 提供商页配置并绑定"
-                emit({"type": "llm_error", "agent": agent_cfg["name"], "message": err})
-                thinking = err
-            else:
-                system = (
-                    f"你是「{agent_cfg['name']}」（角色：{agent_cfg.get('role', '')}）。\n"
-                    f"目标：{agent_cfg.get('goal', '')}\n"
-                    f"背景：{agent_cfg.get('backstory', '')}\n\n"
-                    f"当前任务：{task_cfg.get('description', '')}\n"
-                    "请直接输出任务成果正文，不要解释过程，不要提及内部指令。"
-                )
-                emit({"type": "model_call", "agent": agent_cfg["name"],
-                      "provider": provider_rec.get("name"), "status": "running",
-                      "model": provider_rec.get("model")})
-                try:
-                    for delta in llm_client.stream_completion(provider_rec, system, input_text):
-                        thinking += delta
-                        emit({"type": "chunk", "agent": agent_cfg["name"], "text": delta})
-                    emit({"type": "model_call", "agent": agent_cfg["name"],
-                          "provider": provider_rec.get("name"), "status": "done"})
-                except Exception as exc:  # noqa: BLE001
-                    err = f"模型调用失败：{str(exc)[:300]}"
-                    thinking = err
-                    emit({"type": "llm_error", "agent": agent_cfg["name"], "message": err})
+            # 1) 思考：任务描述 + 上游上下文（use_upstream / context）+ 管理者指示
+            ctx_blocks = self._context_blocks(task_cfg, task_cfgs, outputs_map, manager_plan)
+            thinking = self._think(agent_cfg, task_cfg.get("description", ""), input_text, ctx_blocks, emit)
 
             # 2) 工具调用（暂演示首个工具）
             tool_out = ""
@@ -210,6 +284,7 @@ class CrewRunEngine:
 
             output = thinking + (("\n\n" + tool_out) if tool_out else "")
             outputs.append(output)
+            outputs_map[task_cfg.get("title", f"任务{i + 1}")] = output
             emit({"type": "agent_done", "agent": agent_cfg["name"], "output": output})
             self.domain.update("agents", "id", agent_cfg["id"], {"status": "ready"})
 
@@ -221,18 +296,35 @@ class CrewRunEngine:
                 "content": output, "created_at": self._now(),
             })
 
-        result = "协作完成，已生成最终结果：\n" + "\n".join(outputs)
+        # ---- hierarchical：管理者汇总最终结论 ----
+        if process == "hierarchical" and manager_cfg:
+            sum_desc = (
+                f"你是团队管理者，本轮协作目标：{input_text}。\n"
+                "请汇总以下各成员的任务成果，输出一份结构完整、面向管理层的最终结论"
+                "（合并要点、指出整体结论与后续行动项）。"
+            )
+            sum_blocks = [f"[{t.get('title', '')} · {t.get('agent_name', '')}]\n{outputs[i][:1500]}"
+                          for i, t in enumerate(task_cfgs) if i < len(outputs)]
+            emit({"type": "agent_start", "index": -2, "agent": manager_cfg["name"],
+                  "avatar": manager_cfg.get("avatar", "🛡"), "role": "管理者",
+                  "task": "汇总团队成果为最终结论"})
+            result = self._think(manager_cfg, sum_desc, input_text, sum_blocks, emit)
+            emit({"type": "manager", "phase": "summary", "agent": manager_cfg["name"], "output": result})
+            emit({"type": "agent_done", "agent": manager_cfg["name"], "output": result})
+        else:
+            result = "协作完成，已生成最终结果：\n" + "\n".join(outputs)
+
         emit({"type": "crew_done", "result": result, "run_id": run_id})
         self.store.add_message(session_id, {
             "id": f"m-final-{int(time.time() * 1000)}",
-            "role": "result", "agent": "编排结果",
+            "role": "result", "agent": manager_cfg["name"] if (process == "hierarchical" and manager_cfg) else "编排结果",
             "content": result, "created_at": self._now(),
         })
 
         # 4) 落盘 trace
         self.store.save("traces", {
             "id": run_id, "crew_id": crew_cfg["id"], "crew_name": crew_cfg["name"],
-            "session_id": session_id, "input": input_text,
+            "session_id": session_id, "input": input_text, "process": process,
             "status": "success", "task_count": len(task_cfgs),
             "started_at": self._now(), "result": result[:500],
         })
