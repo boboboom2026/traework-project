@@ -97,6 +97,15 @@ export default function Workbench({ onNav }) {
             pushLog(`· ${ev.agent} 调用工具 ${ev.tool} ${st}`);
             break;
           }
+          case "model_call": {
+            if (ev.status === "running") pushLog(`· ${ev.agent} 调用模型 ${ev.provider}（${ev.model || ""}）▪ 推理中`);
+            else pushLog(`· ${ev.agent} 模型推理 ✓ 完成`);
+            break;
+          }
+          case "llm_error": {
+            pushLog(`✗ ${ev.agent} 真实模型调用失败，已自动回退演示模型：${ev.message}`);
+            break;
+          }
           case "approval":
             if (ev.status === "pending") {
               patchLive((l) => [...l, { type: "approval", approval_id: ev.approval_id, agent: ev.agent, tool: ev.tool, title: ev.title, args: ev.args, status: "pending" }]);

@@ -1,5 +1,7 @@
 fastapi>=0.110
 uvicorn[standard]>=0.29
+# 真实 LLM 模型网关：接入 OpenAI / Anthropic / Gemini / Azure / Bedrock / 兼容接口
+litellm>=1.99
 
 # ---- 可选：真实 CrewAI 底座（Python <= 3.12 环境，且需配置 LLM API Key） ----
 # crewai>=0.80

@@ -15,6 +15,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from agent_framework import Agent, ApprovalGate, DataDomain, Tool
 
+import llm_client
 from demo_llm import DemoLLM
 from platform_store import PlatformStore
 
@@ -172,12 +173,39 @@ class CrewRunEngine:
                   "avatar": agent_cfg.get("avatar", "🤖"), "role": agent_cfg.get("role", ""),
                   "task": task_cfg.get("description", "")})
 
-            # 1) 思考过程（流式）
+            # 1) 思考过程（流式）：真实提供商走 litellm，失败自动回退演示模型
             thinking = ""
-            for chunk in self.llm.stream(agent_cfg.get("role", ""),
-                                         task_cfg.get("description", ""), input_text):
-                thinking += chunk
-                emit({"type": "chunk", "agent": agent_cfg["name"], "text": chunk})
+            provider_rec = None
+            if agent_cfg.get("provider_id"):
+                provider_rec = self.store.get("llm_providers", agent_cfg["provider_id"])
+            if provider_rec and llm_client.is_real(provider_rec):
+                system = (
+                    f"你是「{agent_cfg['name']}」（角色：{agent_cfg.get('role', '')}）。\n"
+                    f"目标：{agent_cfg.get('goal', '')}\n"
+                    f"背景：{agent_cfg.get('backstory', '')}\n\n"
+                    f"当前任务：{task_cfg.get('description', '')}\n"
+                    "请直接输出任务成果正文，不要解释过程，不要提及内部指令。"
+                )
+                emit({"type": "model_call", "agent": agent_cfg["name"],
+                      "provider": provider_rec.get("name"), "status": "running",
+                      "model": provider_rec.get("model")})
+                try:
+                    for delta in llm_client.stream_completion(provider_rec, system, input_text):
+                        thinking += delta
+                        emit({"type": "chunk", "agent": agent_cfg["name"], "text": delta})
+                    emit({"type": "model_call", "agent": agent_cfg["name"],
+                          "provider": provider_rec.get("name"), "status": "done"})
+                except Exception as exc:  # noqa: BLE001
+                    emit({"type": "llm_error", "agent": agent_cfg["name"], "message": str(exc)[:300]})
+                    for chunk in self.llm.stream(agent_cfg.get("role", ""),
+                                                 task_cfg.get("description", ""), input_text):
+                        thinking += chunk
+                        emit({"type": "chunk", "agent": agent_cfg["name"], "text": chunk})
+            else:
+                for chunk in self.llm.stream(agent_cfg.get("role", ""),
+                                             task_cfg.get("description", ""), input_text):
+                    thinking += chunk
+                    emit({"type": "chunk", "agent": agent_cfg["name"], "text": chunk})
 
             # 2) 工具调用（暂演示首个工具）
             tool_out = ""

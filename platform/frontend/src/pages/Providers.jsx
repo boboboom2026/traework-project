@@ -6,9 +6,20 @@ const PROV_ICON = { demo: "🧪", openai: "🔷", anthropic: "✳️", gemini: "
 export default function Providers() {
   const [providers, setProviders] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [testState, setTestState] = useState({}); // id -> {testing:boolean, ok:bool, text:string}
 
   const load = () => get("/api/llm-providers").then((r) => setProviders(r.providers || [])).catch(() => {});
   useEffect(() => { load(); }, []);
+
+  async function testConn(p) {
+    setTestState((s) => ({ ...s, [p.id]: { testing: true } }));
+    try {
+      const r = await post(`/api/llm-providers/${p.id}/test`, {});
+      setTestState((s) => ({ ...s, [p.id]: { testing: false, ok: r.ok, text: r.ok ? (r.reply || r.message || "连通") : r.error } }));
+    } catch (err) {
+      setTestState((s) => ({ ...s, [p.id]: { testing: false, ok: false, text: err.message } }));
+    }
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -45,10 +56,20 @@ export default function Providers() {
             <div className="ft">
               <span style={{ fontSize: 12, color: "var(--muted)" }}>{p.api_key ? "🔑 已填凭据" : "无凭据（演示模式）"}</span>
               <span>
+                {p.provider !== "demo" && (
+                  <button className="btn green sm" disabled={testState[p.id]?.testing} onClick={() => testConn(p)}>
+                    {testState[p.id]?.testing ? "测试中…" : "连接测试"}
+                  </button>
+                )}
                 <button className="btn ghost sm" onClick={() => setEditing({ ...p })}>编辑</button>
                 {!p.builtin && <button className="btn ghost sm" style={{ color: "var(--danger)" }} onClick={() => { if (confirm("删除该提供商？")) del(`/api/llm-providers/${p.id}`).then(load); }}>删除</button>}
               </span>
             </div>
+            {testState[p.id] && !testState[p.id].testing && p.provider !== "demo" && (
+              <div style={{ fontSize: 12.5, color: testState[p.id].ok ? "var(--ok)" : "var(--danger)", borderTop: "1px dashed var(--border)", paddingTop: 8, wordBreak: "break-all" }}>
+                {testState[p.id].ok ? `✓ 连接成功 · 模型回复：${testState[p.id].text}` : `✗ 连接失败：${testState[p.id].text}`}
+              </div>
+            )}
           </div>
         ))}
       </div>

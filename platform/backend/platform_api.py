@@ -16,6 +16,7 @@ from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import StreamingResponse
 
 from engine import CrewRunEngine
+import llm_client
 from platform_store import PlatformStore
 
 DATA_DIR = "data"  # 相对 platform/backend 运行目录
@@ -148,6 +149,18 @@ def update_provider(pid: str, payload: Dict[str, Any] = Body(...)):
         raise HTTPException(404, "提供商不存在")
     _store.update("llm_providers", pid, payload)
     return {"ok": True}
+
+
+@router.post("/llm-providers/{pid}/test")
+def test_provider(pid: str, payload: Dict[str, Any] = Body(default={})):
+    """连接测试：用已存配置（可临时覆盖 api_key/base_url/model）发起一次最小请求。"""
+    base = _store.get("llm_providers", pid)
+    if base is None:
+        raise HTTPException(404, "提供商不存在")
+    merged = {**base, **{k: v for k, v in (payload or {}).items() if v not in (None, "")}}
+    if not llm_client.is_real(merged):
+        return {"ok": True, "message": "演示模型内置可用，无需连接测试"}
+    return llm_client.test_completion(merged)
 
 
 @router.delete("/llm-providers/{pid}")
