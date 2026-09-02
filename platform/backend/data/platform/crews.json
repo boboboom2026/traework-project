@@ -4,8 +4,8 @@
     "name": "市场分析工作流",
     "description": "调研 → 分析 → 成稿 的三步协作流程",
     "process": "sequential",
-    "manager_agent_id": null,
-    "planning": false,
+    "manager_agent_id": "69a868d4",
+    "planning": true,
     "memory": false,
     "tasks": [
       {
