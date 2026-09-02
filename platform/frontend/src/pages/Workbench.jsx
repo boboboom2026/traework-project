@@ -3,6 +3,32 @@ import { api, get, post, streamSSE } from "../api.js";
 
 const EMOJI = { "资深市场调研员": "🔍", "数据分析师": "📊", "报告撰稿人": "✍️" };
 
+const CHIP_COLORS = [
+  { bg: "#e3ecff", fg: "#1d4ed8" },
+  { bg: "#e7f8ef", fg: "#15803d" },
+  { bg: "#fdf3dc", fg: "#b45309" },
+  { bg: "#fdeaea", fg: "#dc2626" },
+  { bg: "#e0f4f2", fg: "#0f766e" },
+  { bg: "#f3e8ff", fg: "#7c3aed" },
+];
+
+function MemberChips({ members }) {
+  return (
+    <>
+      {members.map((m, i) => {
+        const c = CHIP_COLORS[i % CHIP_COLORS.length];
+        return (
+          <span key={m} className="member-chip" title={m}>
+            <span className="mav" style={{ background: c.bg }}>{EMOJI[m] || "🤖"}</span>
+            {m}
+          </span>
+        );
+      })}
+      <span className="mcount-badge">{members.length} 名成员</span>
+    </>
+  );
+}
+
 export default function Workbench({ onNav }) {
   const [sessions, setSessions] = useState([]);
   const [sid, setSid] = useState(null);
@@ -184,7 +210,10 @@ export default function Workbench({ onNav }) {
     <div className="workbench">
       <div className="wb-side">
         <div className="hd">
-          <button className="btn pri" style={{ width: "100%" }} onClick={() => setCreating(true)}>＋ 新建协作会话</button>
+          <div className="wb-side-title">
+            <span className="t">协作会话</span>
+            <button className="btn ghost sm" onClick={() => setCreating(true)}>＋ 新建</button>
+          </div>
         </div>
         <div className="wb-chats">
           {sessions.map((s) => (
@@ -201,31 +230,37 @@ export default function Workbench({ onNav }) {
       </div>
 
       <div className="wb-main">
+        <div className="wb-hero">
+        <div className="wb-hero-row">
+          <div>
+            <div className="wb-hero-title">协作工作台</div>
+            <div className="wb-hero-sub">群聊式多智能体对话协作（群 / 任务）</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {session && (
+              <button className="btn ghost sm" onClick={() => { if (confirm("删除该会话？")) { api(`/api/sessions/${session.id}`, { method: "DELETE" }).then(() => { setSid(null); setSession(null); refreshSessions(); }); } }}>删除会话</button>
+            )}
+            <button className="btn pri" onClick={() => setCreating(true)}>＋ 新建协作会话</button>
+          </div>
+        </div>
+        {session && (
+          <div className="wb-members">
+            <MemberChips members={session.members || []} />
+          </div>
+        )}
+      </div>
+
         {!session ? (
           <div className="empty" style={{ flex: 1, display: "grid", placeItems: "center" }}>
             <div>选择一个会话开始协作，或前往 协作编排配置 创建新的智能体团队</div>
           </div>
         ) : (
           <>
-            <div className="wb-head">
-              <div>
-                <div className="nm">{session.name}</div>
-                <div className="members">
-                  {(session.members || []).map((m) => (
-                    <span key={m} className="tag neutral">{EMOJI[m] || "🤖"} {m}</span>
-                  ))}
-                </div>
+            {log.length > 0 && (
+              <div className="run-log">
+                {log.map((l, i) => <span key={i} className={l.startsWith("✓") ? "ok" : ""}>{l}</span>)}
               </div>
-              <button className="btn ghost sm" onClick={() => { if (confirm("删除该会话？")) { api(`/api/sessions/${session.id}`, { method: "DELETE" }).then(() => { setSid(null); setSession(null); refreshSessions(); }); } }}>删除会话</button>
-            </div>
-
-            <div style={{ padding: "12px 24px 0" }}>
-              {log.length > 0 && (
-                <div className="run-log">
-                  {log.map((l, i) => <span key={i} className={l.startsWith("✓") ? "ok" : ""}>{l}</span>)}
-                </div>
-              )}
-            </div>
+            )}
 
             <div className="msg-area" ref={areaRef}>
               {msgs.map((m) => <MsgView key={m.id} m={m} />)}

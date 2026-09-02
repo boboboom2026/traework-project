@@ -13,7 +13,7 @@
         "title": "调研",
         "agent_name": "资深市场调研员",
         "description": "对目标市场进行调研，搜集规模、增速、玩家与趋势信息",
-        "expected_output": "结构化调研结论；工具：web_search"
+        "expected_output": "结构化调研结论；"
       },
       {
         "id": "1e6aab4f",
