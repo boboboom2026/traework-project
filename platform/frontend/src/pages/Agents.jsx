@@ -13,6 +13,7 @@ export default function Agents() {
   const [agents, setAgents] = useState([]);
   const [tools, setTools] = useState([]);
   const [providers, setProviders] = useState([]);
+  const [docs, setDocs] = useState([]);
   const [editing, setEditing] = useState(null); // null | {} 新建 | agent 编辑
 
   const load = () => get("/api/agents").then((r) => setAgents(r.agents || [])).catch(() => {});
@@ -20,6 +21,7 @@ export default function Agents() {
     load();
     get("/api/tools").then((r) => setTools(r.tools || [])).catch(() => {});
     get("/api/llm-providers").then((r) => setProviders(r.providers || [])).catch(() => {});
+    get("/api/knowledge").then((r) => setDocs(r.docs || [])).catch(() => {});
   }, []);
 
   async function submit(e) {
@@ -31,6 +33,7 @@ export default function Agents() {
       tools: fd.getAll("tools"),
       memory: fd.get("memory") === "on",
       allow_delegation: fd.get("delegation") === "on",
+      knowledge_ids: fd.getAll("knowledge_ids"),
       avatar: AVATAR_SET.has(fd.get("avatar")) ? fd.get("avatar") : "🤖",
     };
     try {
@@ -65,6 +68,7 @@ export default function Agents() {
               <div className="ft">
                 <span style={{ fontSize: 12, color: "var(--dim)" }}>
                   记忆：{a.memory ? "开" : "关"} · 委派：{a.allow_delegation ? "允许" : "禁止"}
+                  {(a.knowledge_ids || []).length ? ` · 📚 ${docs.filter((d) => a.knowledge_ids.includes(d.id)).map((d) => d.name).join("、")}` : ""}
                 </span>
                 <span>
                   <button className="btn ghost sm" onClick={() => setEditing({ ...a })}>编辑</button>
@@ -123,6 +127,19 @@ export default function Agents() {
                 ))}
               </div>
               <div className="hint">🛡 表示高风险工具，使用时需触发审批（人工介入）。</div>
+            </div>
+            <div className="field">
+              <label>绑定知识库（Knowledge，执行任务时检索注入上下文）</label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {docs.map((d) => (
+                  <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#10182b", border: "1px solid var(--border2)", borderRadius: 9, padding: "6px 10px", fontSize: 12.5, cursor: "pointer" }}>
+                    <input type="checkbox" name="knowledge_ids" value={d.id} defaultChecked={(editing.knowledge_ids || []).includes(d.id)} />
+                    📄 {d.name}
+                  </label>
+                ))}
+                {!docs.length && <span style={{ fontSize: 12, color: "var(--dim)" }}>暂无知识文档，可先在「知识库」页添加</span>}
+              </div>
+              <div className="hint">勾选后该智能体执行的每项任务都会先按任务描述检索知识库，命中片段注入系统提示；任务自身配置的绑定优先。</div>
             </div>
             <div className="row">
               <label className="field" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>

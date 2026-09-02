@@ -17,6 +17,7 @@ from fastapi.responses import StreamingResponse
 
 from engine import CrewRunEngine
 import llm_client
+import retriever
 from platform_store import PlatformStore
 
 DATA_DIR = "data"  # 相对 platform/backend 运行目录
@@ -308,7 +309,14 @@ def list_traces():
     return {"traces": rows}
 
 
-# =================== 知识库 ===================
+# =================== 知识库（Knowledge + RAG） ===================
+def _reindex(rec: Dict[str, Any]) -> None:
+    """写入前自动分块并标记索引状态（本地哈希嵌入，离线可用）。"""
+    content = (rec.get("content") or "").strip()
+    rec["chunk_count"] = len(retriever.chunk_text(content)) if content else 0
+    rec["status"] = "已嵌入" if content else "待嵌入"
+
+
 @router.get("/knowledge")
 def list_knowledge():
     return {"docs": _store.all("knowledge")}
@@ -319,8 +327,18 @@ def add_knowledge(payload: Dict[str, Any] = Body(...)):
     rec = dict(payload)
     rec["id"] = rec.get("id") or _new_id()
     rec["created_at"] = _now()
-    rec.setdefault("status", "待嵌入")
+    _reindex(rec)
     return _store.save("knowledge", rec)
+
+
+@router.put("/knowledge/{kid}")
+def update_knowledge(kid: str, payload: Dict[str, Any] = Body(...)):
+    if _store.get("knowledge", kid) is None:
+        raise HTTPException(404, "文档不存在")
+    rec = dict(payload)
+    _reindex(rec)
+    _store.update("knowledge", kid, rec)
+    return {"ok": True}
 
 
 @router.delete("/knowledge/{kid}")
@@ -328,6 +346,17 @@ def delete_knowledge(kid: str):
     if not _store.delete("knowledge", kid):
         raise HTTPException(404, "文档不存在")
     return {"ok": True}
+
+
+@router.get("/knowledge/search")
+def search_knowledge(q: str = "", ids: str = "", top_k: int = 3):
+    """RAG 检索测试：对知识库（可按 ids 限定范围）执行相似度检索。"""
+    docs = _store.all("knowledge")
+    if ids:
+        id_set = {x for x in ids.split(",") if x}
+        docs = [d for d in docs if d["id"] in id_set]
+    hits = retriever.search(q, docs, top_k=max(1, min(top_k, 10)))
+    return {"query": q, "total": len(hits), "hits": hits}
 
 
 # =================== 记忆 ===================

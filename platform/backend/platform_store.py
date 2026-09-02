@@ -27,7 +27,7 @@ class PlatformStore:
         d.set_seed("llm_providers", SEED_PROVIDERS)
         d.set_seed("sessions", SEED_SESSIONS)
         d.set_seed("traces", [])
-        d.set_seed("knowledge", [])
+        d.set_seed("knowledge", SEED_KNOWLEDGE)
         d.set_seed("memory", [])
         d.set_seed("approvals", [])
 
@@ -140,6 +140,33 @@ SEED_CREWS = [
              "description": "汇总调研与分析结论，撰写结构完整的分析报告",
              "expected_output": "《目标课题分析报告》完整初稿"},
         ],
+    },
+]
+
+SEED_KNOWLEDGE = [
+    {
+        "id": "kb-product-2026", "name": "2026 企业产品手册", "kind": "txt",
+        "source": "产品中心", "created_at": "2026-09-02 09:00:00",
+        "status": "已嵌入", "chunk_count": 1,
+        "content": (
+            "智效云 AI 协作套件 2026 版核心参数：\n"
+            "- 标准版订阅价格 199 元/人/年，专业版 499 元/人/年，企业版定制报价。\n"
+            "- 支持 200 人以上企业采购，含专属实施顾问与 7x24 技术支持。\n"
+            "- 官方发布渠道：官网与应用商店，2026 年 Q2 起增加私有化部署选项。\n"
+            "- 客服电话 400-800-2026，工作日 9:00-18:00 在线。"
+        ),
+    },
+    {
+        "id": "kb-expense-2026", "name": "公司差旅报销制度", "kind": "txt",
+        "source": "行政部门", "created_at": "2026-09-02 09:00:00",
+        "status": "已嵌入", "chunk_count": 1,
+        "content": (
+            "公司差旅报销制度（2026 修订版）：\n"
+            "- 出差住宿标准：一线城市每晚 500 元以内，其余城市 300 元以内。\n"
+            "- 市内交通凭票实报实销，出租车单次 100 元以上需提前报备。\n"
+            "- 报销流程：填写电子表单并上传发票，财务 5 个工作日内审批打款。\n"
+            "- 出差补贴：餐补 80 元/天，出差超过 3 天部分按 60 元/天。"
+        ),
     },
 ]
 

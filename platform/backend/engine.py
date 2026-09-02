@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional
 from agent_framework import Agent, ApprovalGate, DataDomain, Tool
 
 import llm_client
+import retriever
 from platform_store import PlatformStore
 
 APPROVAL_TIMEOUT = 120  # 秒
@@ -239,6 +240,32 @@ class CrewRunEngine:
                 return a
         return None
 
+    # ---------- 知识检索（RAG）：任务/智能体级绑定，命中片段注入上下文 ----------
+    def _knowledge_blocks(self, task_cfg: Dict[str, Any], agent_cfg: Dict[str, Any],
+                          input_text: str, emit: Callable[[Dict[str, Any]], None]) -> List[str]:
+        task_kids = list(task_cfg.get("knowledge_ids") or [])
+        agent_kids = list(agent_cfg.get("knowledge_ids") or [])
+        use_kb = bool(task_cfg.get("use_knowledge")) or bool(task_kids)
+        if not use_kb and not agent_kids:
+            return []
+        scope: Optional[List[str]] = task_kids or agent_kids or None  # None=全库
+        docs = self.store.all("knowledge")
+        if scope is not None:
+            docs = [d for d in docs if d["id"] in scope]
+        if not docs:
+            return []
+        query = f"{task_cfg.get('description', '')} {input_text}"
+        hits = retriever.search(query, docs, top_k=3)
+        emit({"type": "knowledge_retrieved", "agent": agent_cfg["name"],
+              "task": task_cfg.get("title", ""), "query": query[:80],
+              "scope": "task/绑定" if task_kids else ("agent/绑定" if agent_kids else "全库"),
+              "hit_count": len(hits),
+              "docs": [{"doc_name": h["doc_name"], "score": h["score"], "kind": h["kind"]} for h in hits]})
+        return [
+            f"【知识库 · {h['doc_name']}】（相关度 {h['score']:.2f}）\n{h['text']}"
+            for h in hits
+        ]
+
     # ---------- 执行（生成器：产出 SSE 事件） ----------
     def run_crew(
         self,
@@ -295,9 +322,10 @@ class CrewRunEngine:
                   "avatar": agent_cfg.get("avatar", "🤖"), "role": agent_cfg.get("role", ""),
                   "task": task_cfg.get("description", "")})
 
-            # 1) 思考：任务描述 + 上游上下文（use_upstream / context）+ 管理者指示
+            # 1) 思考：任务描述 + 上游上下文（use_upstream / context）+ 管理者指示 + 知识检索（RAG）
             output_type = task_cfg.get("output_type") or "text"
             ctx_blocks = self._context_blocks(task_cfg, task_cfgs, outputs_map, manager_plan)
+            ctx_blocks += self._knowledge_blocks(task_cfg, agent_cfg, input_text, emit)
             thinking = self._think(agent_cfg, task_cfg.get("description", ""), input_text,
                                    ctx_blocks, emit, output_type=output_type)
 

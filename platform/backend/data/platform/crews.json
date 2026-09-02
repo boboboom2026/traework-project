@@ -59,5 +59,24 @@
       }
     ],
     "id": "c1f60978"
+  },
+  {
+    "name": "RAG 验证编排",
+    "process": "sequential",
+    "tasks": [
+      {
+        "title": "知识问答",
+        "agent_name": "资深市场调研员",
+        "description": "基于知识库资料准确回答客户关于产品的问题",
+        "expected_output": "准确、符合企业内部资料的答案",
+        "knowledge_ids": [
+          "e53fe596"
+        ],
+        "use_knowledge": true
+      }
+    ],
+    "id": "f8368fcf",
+    "planning": false,
+    "memory": false
   }
 ]

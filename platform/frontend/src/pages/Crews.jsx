@@ -4,6 +4,7 @@ import { del, get, post, put } from "../api.js";
 export default function Crews({ onNav }) {
   const [crews, setCrews] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [docs, setDocs] = useState([]);
   const [editing, setEditing] = useState(null);
   const [preview, setPreview] = useState(null);
 
@@ -11,6 +12,7 @@ export default function Crews({ onNav }) {
   useEffect(() => {
     load();
     get("/api/agents").then((r) => setAgents(r.agents || [])).catch(() => {});
+    get("/api/knowledge").then((r) => setDocs(r.docs || [])).catch(() => {});
   }, []);
 
   async function submit(e) {
@@ -31,6 +33,8 @@ export default function Crews({ onNav }) {
         description: descs[i], expected_output: exps[i],
         use_upstream: ctxs[i] === "on",
         output_type: outs[i] || "text",
+        use_knowledge: fd.get(`task_use_kb_${i}`) === "on",
+        knowledge_ids: fd.getAll(`task_kb_${i}`),
       });
     }
     const rec = {
@@ -73,6 +77,7 @@ export default function Crews({ onNav }) {
                     <b>{t.title}</b>
                     <span style={{ color: "var(--muted)" }}>→ {t.agent_name}</span>
                     {t.use_upstream && <span className="tag info">⛓ 引用上游</span>}
+                    {t.use_knowledge && <span className="tag info">📚 知识增强</span>}
                   </div>
                 ))}
               </div>
@@ -91,13 +96,13 @@ export default function Crews({ onNav }) {
         </div>
       ) : <div className="card"><div className="empty">暂无编排配置</div></div>}
 
-      {editing && <CrewEditor agents={agents} editing={editing} onClose={() => setEditing(null)} onSubmit={submit} />}
+      {editing && <CrewEditor agents={agents} docs={docs} editing={editing} onClose={() => setEditing(null)} onSubmit={submit} />}
       {preview && <PreviewModal crew={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }
 
-function CrewEditor({ agents, editing, onClose, onSubmit }) {
+function CrewEditor({ agents, docs, editing, onClose, onSubmit }) {
   const [tasks, setTasks] = useState(editing.tasks || []);
   const model = agents.find((a) => a.id === editing.manager_agent_id);
   return (
@@ -155,6 +160,24 @@ function CrewEditor({ agents, editing, onClose, onSubmit }) {
                   <option value="text">输出形态：文本 text</option>
                   <option value="json">输出形态：结构化 JSON</option>
                 </select>
+              </div>
+              <div style={{ marginTop: 10, borderTop: "1px dashed var(--border)", paddingTop: 10 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--muted)", cursor: "pointer" }}>
+                  <input type="checkbox" name={`task_use_kb_${i}`} defaultChecked={!!t.use_knowledge} />
+                  📚 启用知识检索（RAG，任务执行前检索知识库并注入上下文）
+                </label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                  {(docs.length ? docs : []).map((d) => (
+                    <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--muted)", cursor: "pointer", background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 8px" }}>
+                      <input type="checkbox" name={`task_kb_${i}`} value={d.id} defaultChecked={(t.knowledge_ids || []).includes(d.id)} />
+                      📄 {d.name}
+                    </label>
+                  ))}
+                  {!docs.length && <span style={{ fontSize: 11.5, color: "var(--dim)" }}>暂无知识文档，请先在「知识库」页上传带内容的文档</span>}
+                </div>
+                {!t.use_knowledge && !(t.knowledge_ids || []).length && (
+                  <div className="hint">开启后将按任务描述 + 用户输入检索知识库，命中片段注入系统提示（可按需勾选限定文档或全库检索）。</div>
+                )}
               </div>
               <div style={{ textAlign: "right", marginTop: 8 }}>
                 <button type="button" className="btn ghost sm" style={{ color: "var(--danger)" }} onClick={() => setTasks(tasks.filter((_, j) => j !== i))}>移除任务</button>

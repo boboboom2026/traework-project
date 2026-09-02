@@ -123,6 +123,11 @@ export default function Workbench({ onNav }) {
             pushLog(`· ${ev.agent} 调用工具 ${ev.tool} ${st}`);
             break;
           }
+          case "knowledge_retrieved": {
+            const names = (ev.docs || []).map((d) => d.doc_name).join("、");
+            pushLog(`📚 ${ev.agent} 检索知识库（${ev.scope}）命中 ${ev.hit_count} 篇${names ? `：${names}` : ""}`);
+            break;
+          }
           case "model_call": {
             if (ev.status === "running") pushLog(`· ${ev.agent} 调用模型 ${ev.provider}（${ev.model || ""}）▪ 推理中`);
             else pushLog(`· ${ev.agent} 模型推理 ✓ 完成`);
