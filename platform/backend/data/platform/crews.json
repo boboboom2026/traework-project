@@ -1,0 +1,34 @@
+[
+  {
+    "id": "ebfe1fa4",
+    "name": "市场分析工作流",
+    "description": "调研 → 分析 → 成稿 的三步协作流程",
+    "process": "sequential",
+    "manager_agent_id": null,
+    "planning": false,
+    "memory": false,
+    "tasks": [
+      {
+        "id": "c97e1be9",
+        "title": "调研",
+        "agent_name": "资深市场调研员",
+        "description": "对目标市场进行调研，搜集规模、增速、玩家与趋势信息",
+        "expected_output": "结构化调研结论；工具：web_search"
+      },
+      {
+        "id": "1e6aab4f",
+        "title": "分析",
+        "agent_name": "数据分析师",
+        "description": "基于调研结论做商业分析，输出洞察与建议",
+        "expected_output": "分析洞察 + 行动建议"
+      },
+      {
+        "id": "09e6631a",
+        "title": "成稿",
+        "agent_name": "报告撰稿人",
+        "description": "汇总调研与分析结论，撰写结构完整的分析报告",
+        "expected_output": "《目标课题分析报告》完整初稿"
+      }
+    ]
+  }
+]

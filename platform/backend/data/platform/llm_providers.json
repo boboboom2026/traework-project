@@ -1,0 +1,13 @@
+[
+  {
+    "id": "demo",
+    "name": "演示模型（无需 Key）",
+    "provider": "demo",
+    "model": "demo/chat",
+    "api_key": "",
+    "base_url": "",
+    "temperature": 0.2,
+    "builtin": true,
+    "notes": "内置演示模型：无需 API Key，确定性输出，用于跑通平台全流程"
+  }
+]
