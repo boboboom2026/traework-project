@@ -294,7 +294,7 @@ export default function Workbench({ onNav }) {
                           <span className="tag info">{it.role}</span>
                           {!it.done && <span className="thinking"><span className="dots">思考中</span></span>}
                         </div>
-                        <div className="bubble" style={{ borderColor: it.done ? "var(--border)" : "rgba(251,191,36,.35)" }}>
+                        <div className="bubble" style={{ borderColor: it.done ? "var(--border)" : "rgba(242,107,58,.45)" }}>
                           {it.text || "…"}
                           {it.done && it.final}
                         </div>
@@ -399,7 +399,7 @@ function ResultCard({ m }) {
 function ResultJsonView({ m }) {
   const tasks = m.tasks_output || [];
   const code = (obj) =>
-    <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", fontSize: 12.5, lineHeight: 1.6, background: "#f6f8fc", border: "1px solid #e4e9f2", borderRadius: 10, padding: 12, margin: "6px 0", maxHeight: 340, overflow: "auto" }}>{JSON.stringify(obj, null, 2)}</pre>;
+    <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", fontSize: 12.5, lineHeight: 1.6, background: "var(--side)", border: "1px solid var(--border)", borderRadius: 10, padding: 12, margin: "6px 0", maxHeight: 340, overflow: "auto" }}>{JSON.stringify(obj, null, 2)}</pre>;
   return (
     <div>
       {m.output_json && (

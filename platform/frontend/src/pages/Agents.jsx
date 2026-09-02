@@ -120,7 +120,7 @@ export default function Agents() {
               <label>可用工具</label>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {tools.map((t) => (
-                  <label key={t.name} style={{ display: "flex", alignItems: "center", gap: 6, background: "#10182b", border: "1px solid var(--border2)", borderRadius: 9, padding: "6px 10px", fontSize: 12.5, cursor: "pointer" }}>
+                  <label key={t.name} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--side)", border: "1px solid var(--border2)", borderRadius: 9, padding: "6px 10px", fontSize: 12.5, cursor: "pointer" }}>
                     <input type="checkbox" name="tools" value={t.name} defaultChecked={(editing.tools || []).includes(t.name)} />
                     {t.name}{t.real ? "" : "（演示）"}{t.requires_approval ? " 🛡" : ""}
                   </label>
@@ -132,7 +132,7 @@ export default function Agents() {
               <label>绑定知识库（Knowledge，执行任务时检索注入上下文）</label>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {docs.map((d) => (
-                  <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#10182b", border: "1px solid var(--border2)", borderRadius: 9, padding: "6px 10px", fontSize: 12.5, cursor: "pointer" }}>
+                  <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--side)", border: "1px solid var(--border2)", borderRadius: 9, padding: "6px 10px", fontSize: 12.5, cursor: "pointer" }}>
                     <input type="checkbox" name="knowledge_ids" value={d.id} defaultChecked={(editing.knowledge_ids || []).includes(d.id)} />
                     📄 {d.name}
                   </label>
