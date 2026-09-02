@@ -83,9 +83,8 @@ def chunk_text(text: str, size: int = _CHUNK_SIZE, overlap: int = _CHUNK_OVERLAP
 
 
 def pick_embedding_provider(providers: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """从 llm_providers 中选取嵌入用途提供商（kind=embedding，优先已填 Key 的）。"""
-    emb = [p for p in (providers or []) if p.get("kind") == "embedding" and p.get("model")]
-    emb.sort(key=lambda p: 0 if p.get("api_key") else 1)
+    """选取可用的嵌入提供商：kind=embedding 且已填 api_key（未填 Key 不生效，走本地回退）。"""
+    emb = [p for p in (providers or []) if p.get("kind") == "embedding" and p.get("model") and p.get("api_key")]
     return emb[0] if emb else None
 
 
