@@ -102,6 +102,11 @@ export default function Workbench({ onNav }) {
           case "run_start":
             pushLog(`▶ 运行开始：${ev.crew}（${ev.run_id}）`);
             break;
+          case "planning_done": {
+            pushLog(`🧭 规划完成：自动拆解为 ${ev.count} 个子任务${(ev.titles || []).length ? `：${ev.titles.join("、")}` : ""}`);
+            if (!ev.count) pushLog("· 规划结果不可用，沿用原始任务清单");
+            break;
+          }
           case "agent_start": {
             const item = { type: "agent_run", agent: ev.agent, avatar: ev.avatar || EMOJI[ev.agent] || "🤖", role: ev.role, task: ev.task, text: "", done: false };
             patchLive((l) => { agentIdx[ev.agent] = l.length; return [...l, item]; });
@@ -126,6 +131,15 @@ export default function Workbench({ onNav }) {
           case "knowledge_retrieved": {
             const names = (ev.docs || []).map((d) => d.doc_name).join("、");
             pushLog(`📚 ${ev.agent} 检索知识库（${ev.scope}）命中 ${ev.hit_count} 篇${names ? `：${names}` : ""}`);
+            break;
+          }
+          case "memory_retrieved": {
+            const label = ev.kind === "short" ? "短期" : "长期";
+            pushLog(`🧠 ${ev.agent} 读取${label}记忆 ${ev.count} 条`);
+            break;
+          }
+          case "memory_saved": {
+            pushLog(`🧠 ${ev.agent} 沉淀长期记忆：${(ev.summary || "").slice(0, 40)}…`);
             break;
           }
           case "model_call": {

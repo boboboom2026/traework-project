@@ -124,5 +124,53 @@
     "task_count": 1,
     "started_at": "2026-09-02 18:14:49",
     "result": "协作完成，已生成最终结果：\n根据知识库资料，智效云 AI 协作套件 2026 版订阅价格如下：\n\n- 标准版：199 元/人/年\n- 专业版：499 元/人/年\n- 企业版：定制报价（需联系销售获取具体方案）\n\n企业版适用于 200 人以上企业采购，包含专属实施顾问与 7x24 技术支持。如需获取企业版定制报价，建议通过官方渠道（官网或客服电话 400-800-2026，工作日 9:00-18:00）咨询。\n\n[web_search] 检索到「目标话题」相关资讯 12 条，覆盖市场规模、增速与主要玩家。"
+  },
+  {
+    "id": "run-1788374835787",
+    "crew_id": "f8368fcf",
+    "crew_name": "RAG 验证编排",
+    "session_id": "435050c4",
+    "input": "客户企业想采购智效云 AI 协作套件，请告知企业版报价方式与客服联系方式",
+    "process": "sequential",
+    "status": "success",
+    "task_count": 1,
+    "started_at": "2026-09-02 18:47:16",
+    "result": "协作完成，已生成最终结果：\n模型调用失败：litellm.BadRequestError: OpenAIException - Insufficient Balance\n\n[web_search] 检索到「目标话题」相关资讯 12 条，覆盖市场规模、增速与主要玩家。"
+  },
+  {
+    "id": "run-1788374869786",
+    "crew_id": "f8368fcf",
+    "crew_name": "RAG 验证编排",
+    "session_id": "435050c4",
+    "input": "还是之前那个客户，他们决定采购智效云，请问企业版怎么报价？还有客服电话",
+    "process": "sequential",
+    "status": "success",
+    "task_count": 1,
+    "started_at": "2026-09-02 18:47:50",
+    "result": "协作完成，已生成最终结果：\n模型调用失败：litellm.BadRequestError: OpenAIException - Insufficient Balance\n\n[web_search] 检索到「目标话题」相关资讯 12 条，覆盖市场规模、增速与主要玩家。"
+  },
+  {
+    "id": "run-1788375183369",
+    "crew_id": "6f64f4d2",
+    "crew_name": "并行验证编排",
+    "session_id": "e4059257",
+    "input": "演示任务",
+    "process": "sequential",
+    "status": "success",
+    "task_count": 3,
+    "started_at": "2026-09-02 18:53:14",
+    "result": "协作完成，已生成最终结果：\n模型调用失败：litellm.BadRequestError: OpenAIException - Insufficient Balance\n\n[calc] 表达式无法计算，请检查输入（仅支持基础算术）\n模型调用失败：litellm.BadRequestError: OpenAIException - Insufficient Balance\n\n[web_search] 检索服务当前网络不可达（<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1127)>）；可改用 url_fetch 或 python_exec 完成信息获取。\n模型调用失败：litellm.BadRequestError: OpenAIException - Insufficient Balance"
+  },
+  {
+    "id": "run-1788375194377",
+    "crew_id": "d58a07f5",
+    "crew_name": "Planning验证编排",
+    "session_id": "05e57519",
+    "input": "演示任务",
+    "process": "sequential",
+    "status": "success",
+    "task_count": 1,
+    "started_at": "2026-09-02 18:53:25",
+    "result": "协作完成，已生成最终结果：\n模型调用失败：litellm.BadRequestError: OpenAIException - Insufficient Balance\n\n[web_search] 检索服务当前网络不可达（<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1127)>）；可改用 url_fetch 或 python_exec 完成信息获取。"
   }
 ]

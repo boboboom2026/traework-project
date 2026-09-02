@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import threading
 import time
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
@@ -23,52 +24,143 @@ APPROVAL_TIMEOUT = 120  # 秒
 POLL_INTERVAL = 0.5
 
 
-# ------------------- 演示工具目录（对应 CrewAI 100+ 工具中的常用子集） -------------------
-def build_tools() -> Dict[str, Tool]:
-    """构建平台工具目录。真实场景可对接 crewai-tools；此处为确定性演示实现。"""
+# ------------------- 工具目录（对齐 crewai-tools；real=True 为真实调用，False 为演示 stub） -------------------
 
-    def _search(keyword: str = "", **_: Any) -> str:
-        return f"[web_search] 检索到「{keyword or '目标话题'}」相关资讯 12 条，覆盖市场规模、增速与主要玩家。"
-
-    def _calc(expression: str = "1+1", **_: Any) -> str:
+# ---- 真实：DuckDuckGo Instant Answer（无需 Key） ----
+def _tool_search(keyword: str = "", **_: Any) -> str:
+    import json as _json
+    import urllib.parse
+    import urllib.request
+    last_err = ""
+    for _attempt in range(2):  # 偶发握手失败重试一次
         try:
-            return f"[calc] {expression} = {eval(expression)}"
-        except Exception:
-            return "[calc] 表达式无法计算，请检查输入"
+            url = ("https://api.duckduckgo.com/?q=" + urllib.parse.quote(keyword or "")
+                   + "&format=json&no_html=1&skip_disambig=1")
+            with urllib.request.urlopen(url, timeout=10) as r:
+                d = _json.loads(r.read().decode("utf-8", "replace"))
+            topics: list = list(d.get("RelatedTopics") or [])
+            items: list = []
+            for t in topics[:8]:
+                if "Topics" in t:
+                    items += [s for s in t["Topics"][:2] if s.get("Text")]
+                elif t.get("Text"):
+                    items.append(t)
+            if d.get("AbstractText"):
+                items = [{"Text": d.get("AbstractText"), "FirstURL": d.get("AbstractURL")}] + items
+            lines = [f"- {it.get('Text', '')[:160]}（{it.get('FirstURL', '')}）" for it in items[:6]]
+            if not lines:
+                return f"[web_search] 未找到「{keyword or '目标'}」相关的即时信息，建议更换关键词。"
+            return f"[web_search] 「{keyword or '目标'}」真实搜索结果 {len(items)} 条：\n" + "\n".join(lines)
+        except Exception as exc:  # noqa: BLE001
+            last_err = str(exc)[:150]
+    return f"[web_search] 检索服务当前网络不可达（{last_err}）；可改用 url_fetch 或 python_exec 完成信息获取。"
 
-    def _db(topic: str = "", **_: Any) -> str:
-        return f"[db_query] 查询到业务库中关于「{topic or '目标'}」的历史数据 36 条，近一年增速 18%。"
 
-    def _news(topic: str = "", **_: Any) -> str:
-        return f"[fetch_news] 抓取到关于「{topic or '目标'}」的行业快讯 5 条：政策、融资、新品各 1 条。"
+# ---- 真实：受限 Python 沙箱执行 ----
+def _tool_py(code: str = "", **_: Any) -> str:
+    import contextlib
+    import io
+    safe_builtins = {
+        "len": len, "range": range, "abs": abs, "min": min, "max": max, "sum": sum,
+        "str": str, "int": int, "float": float, "list": list, "dict": dict,
+        "tuple": tuple, "set": set, "enumerate": enumerate, "zip": zip,
+        "sorted": sorted, "round": round, "print": print,
+    }
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            exec((code or ""), {"__builtins__": safe_builtins})  # noqa: S102 演示级受限执行
+        out = buf.getvalue()
+        return f"[python_exec] 执行成功，输出：\n{out[:1500]}" if out else "[python_exec] 执行成功（无输出）"
+    except Exception as exc:  # noqa: BLE001
+        return f"[python_exec] 执行出错：{str(exc)[:200]}"
 
-    def _report(topic: str = "", **_: Any) -> str:
-        return (f"[gen_report] 已生成《{topic or '目标'}分析报告》："
-                f"含市场概况、竞争格局、机会风险与行动建议共 4 章 3200 字。")
 
-    def _email(topic: str = "", **_: Any) -> str:
-        return f"[send_email] 已将《{topic or '目标'}分析报告》发送至收件人（含正文摘要与附件）。"
+# ---- 真实：抓取网页正文 ----
+def _tool_fetch(url: str = "", **_: Any) -> str:
+    import html
+    import re
+    import urllib.request
+    if not (url or "").startswith(("http://", "https://")):
+        return "[url_fetch] 仅支持 http(s) 链接"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as r:
+            data = r.read(60000).decode("utf-8", "replace")
+        text = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>", "", data, flags=re.I)
+        text = html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text))).strip()
+        if not text:
+            return "[url_fetch] 页面无可提取文本（可能为 JS 渲染站点）"
+        return f"[url_fetch] 抓取成功（{len(text)} 字符）：{text[:1500]}"
+    except Exception as exc:  # noqa: BLE001
+        return f"[url_fetch] 抓取失败：{str(exc)[:150]}"
 
-    def _publish(topic: str = "", **_: Any) -> str:
-        return f"[publish_doc] 《{topic or '目标'}分析报告》已发布至团队知识库，全员可见。"
 
-    def _archive(topic: str = "", **_: Any) -> str:
-        return f"[archive_data] 已将「{topic or '目标'}」相关数据归档至项目空间，附带索引标签。"
+# ---- 真实：数值计算 ----
+def _tool_calc(expression: str = "1+1", **_: Any) -> str:
+    try:
+        return f"[calc] {expression} = {eval(expression)}"  # noqa: S307 白名单受限算术
+    except Exception:
+        return "[calc] 表达式无法计算，请检查输入（仅支持基础算术）"
 
-    catalog = [
-        ("web_search", "搜索互联网获取资讯与资料", _search, False, "", [{"name": "keyword", "type": "str"}]),
-        ("calc", "数值计算", _calc, False, "", [{"name": "expression", "type": "str"}]),
-        ("db_query", "查询企业业务数据库", _db, False, "", [{"name": "topic", "type": "str"}]),
-        ("fetch_news", "抓取行业资讯快讯", _news, False, "", [{"name": "topic", "type": "str"}]),
-        ("gen_report", "生成结构化分析报告", _report, False, "", [{"name": "topic", "type": "str"}]),
-        ("send_email", "发送邮件（高风险，需审批）", _email, True, "发送邮件", [{"name": "topic", "type": "str"}]),
-        ("publish_doc", "发布文档到知识库（高风险，需审批）", _publish, True, "发布", [{"name": "topic", "type": "str"}]),
-        ("archive_data", "归档数据到项目空间", _archive, False, "", [{"name": "topic", "type": "str"}]),
-    ]
+
+# ---- 真实：当前时间 ----
+def _tool_now(_: str = "", **__: Any) -> str:
+    from datetime import datetime
+    return f"[now] 当前时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+
+# ---- 演示 stub：模拟企业业务系统 ----
+def _tool_db(topic: str = "", **_: Any) -> str:
+    return f"[db_query] 查询到业务库中关于「{topic or '目标'}」的历史数据 36 条，近一年增速 18%。"
+
+
+def _tool_news(topic: str = "", **_: Any) -> str:
+    return f"[fetch_news] 抓取到关于「{topic or '目标'}」的行业快讯 5 条：政策、融资、新品各 1 条。"
+
+
+def _tool_report(topic: str = "", **_: Any) -> str:
+    return f"[gen_report] 已生成《{topic or '目标'}分析报告》：含市场概况、竞争格局、机会风险与行动建议共 4 章 3200 字。"
+
+
+def _tool_email(topic: str = "", **_: Any) -> str:
+    return f"[send_email] 已将《{topic or '目标'}分析报告》发送至收件人（含正文摘要与附件）。"
+
+
+def _tool_publish(topic: str = "", **_: Any) -> str:
+    return f"[publish_doc] 《{topic or '目标'}分析报告》已发布至团队知识库，全员可见。"
+
+
+def _tool_archive(topic: str = "", **_: Any) -> str:
+    return f"[archive_data] 已将「{topic or '目标'}」相关数据归档至项目空间，附带索引标签。"
+
+
+# name, 描述, func, 需审批, 动作标签, 参数, 分类, real
+_TOOL_CATALOG: List[tuple] = [
+    ("web_search", "真实搜索互联网获取资讯与资料（DuckDuckGo）", _tool_search, False, "", [{"name": "keyword", "type": "str"}], "搜索与信息", True),
+    ("url_fetch", "抓取网页正文文本（真实 http 请求）", _tool_fetch, False, "", [{"name": "url", "type": "str"}], "搜索与信息", True),
+    ("fetch_news", "抓取行业资讯快讯（演示数据）", _tool_news, False, "", [{"name": "topic", "type": "str"}], "搜索与信息", False),
+    ("calc", "数值计算（真实白名单算术）", _tool_calc, False, "", [{"name": "expression", "type": "str"}], "数据与计算", True),
+    ("python_exec", "受限 Python 沙箱代码执行（真实）", _tool_py, False, "", [{"name": "code", "type": "str"}], "数据与计算", True),
+    ("db_query", "查询企业业务数据库（演示数据）", _tool_db, False, "", [{"name": "topic", "type": "str"}], "数据与计算", False),
+    ("now", "获取当前日期时间（真实）", _tool_now, False, "", [], "数据与计算", True),
+    ("gen_report", "生成结构化分析报告（演示数据）", _tool_report, False, "", [{"name": "topic", "type": "str"}], "报告与发布", False),
+    ("send_email", "发送邮件（高风险，需审批）（演示）", _tool_email, True, "发送邮件", [{"name": "topic", "type": "str"}], "报告与发布", False),
+    ("publish_doc", "发布文档到知识库（高风险，需审批）（演示）", _tool_publish, True, "发布", [{"name": "topic", "type": "str"}], "报告与发布", False),
+    ("archive_data", "归档数据到项目空间（演示）", _tool_archive, False, "", [{"name": "topic", "type": "str"}], "报告与发布", False),
+]
+
+TOOL_META: Dict[str, Dict[str, Any]] = {
+    name: {"category": cat, "real": real}
+    for name, _desc, _func, _req, _tag, _args, cat, real in _TOOL_CATALOG
+}
+
+
+def build_tools() -> Dict[str, Tool]:
+    """构建平台工具目录：real=True 真实调用，False 为演示 stub。"""
     return {
         name: Tool(name=name, description=desc, func=func, args_schema=args,
                    requires_approval=req, action_tag=tag)
-        for name, desc, func, req, tag, args in catalog
+        for name, desc, func, req, tag, args, _cat, _real in _TOOL_CATALOG
     }
 
 
@@ -79,6 +171,7 @@ class CrewRunEngine:
         self.domain: DataDomain = store.domain
         self.gate = ApprovalGate(self.domain, timeout=APPROVAL_TIMEOUT, poll_interval=POLL_INTERVAL)
         self.tools_raw = build_tools()
+        self.tool_meta = dict(TOOL_META)
 
     # ---------- 配置 → agent_framework 对象 ----------
     def build_agent(self, cfg: Dict[str, Any]) -> Agent:
@@ -115,7 +208,10 @@ class CrewRunEngine:
 
     def _call_tool(self, tool: Tool, agent_name: str, topic: str, emit: Callable[[Dict[str, Any]], None]) -> str:
         """执行工具。需审批工具：先签发审批事件 → 等待人工决策 → 通过才真正执行。"""
-        args = {"topic": topic}
+        param = "topic"
+        if tool.args_schema:
+            param = tool.args_schema[0]["name"]
+        args = {param: topic}
         if not tool.requires_approval:
             emit({"type": "tool_call", "agent": agent_name, "tool": tool.name,
                   "status": "running", "requires_approval": False})
@@ -270,6 +366,154 @@ class CrewRunEngine:
             for h in hits
         ]
 
+    # ---------- 记忆（Memory）：短期 = 会话近期消息；长期 = 跨会话沉淀的事实/结论 ----------
+    def _memory_blocks(self, agent_cfg: Dict[str, Any], session_id: str,
+                       input_text: str, emit: Callable[[Dict[str, Any]], None]) -> List[str]:
+        if not agent_cfg.get("memory"):
+            return []
+        blocks: List[str] = []
+        # 短期记忆：本会话最近的用户/智能体消息
+        s = self.store.get_session(session_id)
+        recent = [(m.get("role"), m.get("agent", ""), m.get("content", ""))
+                  for m in (s.get("messages") or []) if m.get("role") in ("user", "agent")]
+        short = [f"- {r}: {a}: {c[:200]}" for r, a, c in recent[-4:]]
+        if short:
+            blocks.append("【短期记忆 · 本会话近期对话】\n" + "\n".join(short))
+            emit({"type": "memory_retrieved", "kind": "short", "agent": agent_cfg["name"], "count": len(short)})
+        # 长期记忆：memory 集合中与本输入相关的沉淀记录（top 2）
+        recs = [r for r in self.store.all("memory") if r.get("type") == "long"]
+        if recs:
+            scored = sorted(recs, key=lambda r: retriever.score(input_text, r.get("content", "")), reverse=True)
+            tops = [r for r in scored if retriever.score(input_text, r.get("content", "")) >= 0.05][:2]
+            if tops:
+                blocks.append("【长期记忆 · 历史沉淀】\n"
+                              + "\n".join(f"- {r.get('agent', '')}：{r.get('content', '')[:200]}" for r in tops))
+                emit({"type": "memory_retrieved", "kind": "long", "agent": agent_cfg["name"], "count": len(tops)})
+        return blocks
+
+    def _save_memory(self, session_id: str, agent_name: str, content: str,
+                     emit: Callable[[Dict[str, Any]], None]) -> None:
+        text = (content or "").strip()
+        if not text:
+            return
+        _FLAKY = ("模型调用失败", "Insufficient Balance", "llm_error", "连接中断")
+        if any(k in text for k in _FLAKY):
+            return  # 失败信息不沉淀为记忆
+        recs = self.store.all("memory")
+        if any(r.get("type") == "long" and r.get("summary") and r["summary"] in text for r in recs):
+            return  # 与已有记忆高度重复，跳过
+        self.store.save("memory", {
+            "id": f"mem-{int(time.time() * 1000)}",
+            "type": "long", "session_id": session_id, "agent": agent_name,
+            "summary": text[:80], "content": text[:800], "created_at": self._now(),
+        })
+        emit({"type": "memory_saved", "kind": "long", "agent": agent_name, "summary": text[:80]})
+
+    # ---------- 单任务执行（顺序或并行批内调用；返回结构化结果由主线程合并） ----------
+    def _run_task(self, task_cfg: Dict[str, Any], index: int, session_id: str,
+                  input_text: str, outputs_map: Dict[str, str], manager_plan: str,
+                  task_cfgs: List[Dict[str, Any]],
+                  emit: Callable[[Dict[str, Any]], None]) -> Optional[Dict[str, Any]]:
+        agent_cfg = self.agent_by_name(task_cfg.get("agent_name", ""))
+        if agent_cfg is None:
+            emit({"type": "error", "message": f"任务 {task_cfg.get('title')} 关联的智能体不存在"})
+            return None
+        agent = self.build_agent(agent_cfg)
+        emit({"type": "agent_start", "index": index, "agent": agent_cfg["name"],
+              "avatar": agent_cfg.get("avatar", "🤖"), "role": agent_cfg.get("role", ""),
+              "task": task_cfg.get("description", "")})
+
+        output_type = task_cfg.get("output_type") or "text"
+        ctx_blocks = self._context_blocks(task_cfg, task_cfgs, outputs_map, manager_plan)
+        ctx_blocks += self._knowledge_blocks(task_cfg, agent_cfg, input_text, emit)
+        ctx_blocks += self._memory_blocks(agent_cfg, session_id, input_text, emit)
+        thinking = self._think(agent_cfg, task_cfg.get("description", ""), input_text,
+                               ctx_blocks, emit, output_type=output_type)
+
+        tool_out = ""
+        if agent.tools and output_type != "json":
+            tool_out = self._call_tool(agent.tools[0], agent_cfg["name"], input_text, emit)
+
+        output = thinking + (("\n\n" + tool_out) if tool_out else "")
+        json_dict = self._parse_json(output) if output_type == "json" else None
+        emit({"type": "agent_done", "agent": agent_cfg["name"], "output": output})
+        return {
+            "i": index, "title": task_cfg.get("title", f"任务{index + 1}"),
+            "agent": agent_cfg["name"], "agent_id": agent_cfg["id"],
+            "output": output, "output_type": output_type, "json_dict": json_dict,
+        }
+
+    # ---------- 顺序编排 planning：planner 自动拆解目标为任务清单（可替换原任务链） ----------
+    def _plan_tasks(self, crew_cfg: Dict[str, Any], task_cfgs: List[Dict[str, Any]],
+                    input_text: str, session_id: str,
+                    emit: Callable[[Dict[str, Any]], None]) -> List[Dict[str, Any]]:
+        planner = self._resolve_manager(crew_cfg, task_cfgs)
+        if planner is None:
+            return task_cfgs
+        names = "、".join(a["name"] for a in self.store.all("agents"))
+        plan_prompt = (
+            f"你是团队的任务规划员。本轮协作目标：{input_text}。\n"
+            "请把目标拆解为 2-4 个可直接执行的子任务，输出一个 JSON 数组，每项包含："
+            "{\"title\": 任务名, \"agent_name\": 指定智能体, \"description\": 任务描述, \"expected_output\": 期望输出}。\n"
+            f"可选智能体：{names}。\n"
+            "只输出 JSON 数组本身，不要 markdown 代码块与解释文字。"
+        )
+        emit({"type": "agent_start", "index": -3, "agent": planner["name"],
+              "avatar": planner.get("avatar", "🧭"), "role": "规划员",
+              "task": "任务规划：自动拆解本轮目标为任务清单"})
+        plan_raw = self._think(planner, plan_prompt, input_text, [], emit, output_type="json")
+        parsed = self._parse_json(plan_raw)
+        plan_list = parsed if isinstance(parsed, list) else None
+        if isinstance(parsed, dict):
+            plan_list = parsed.get("tasks") or parsed.get("plan") or parsed.get("items")
+        valid: List[Dict[str, Any]] = []
+        if isinstance(plan_list, list):
+            for t in plan_list:
+                if not isinstance(t, dict):
+                    continue
+                if t.get("title") and self.agent_by_name(str(t.get("agent_name", ""))):
+                    valid.append({
+                        "title": str(t["title"])[:50],
+                        "agent_name": str(t["agent_name"]),
+                        "description": str(t.get("description") or t["title"])[:200],
+                        "expected_output": str(t.get("expected_output") or "完成任务")[:200],
+                        "output_type": "text",
+                    })
+        emit({"type": "planning_done", "agent": planner["name"], "count": len(valid),
+              "titles": [t["title"] for t in valid], "raw": plan_raw[:400]})
+        emit({"type": "agent_done", "agent": planner["name"], "output": plan_raw})
+        if valid:
+            self.store.add_message(session_id, {
+                "id": f"m-plan-{int(time.time() * 1000)}",
+                "role": "agent", "agent": planner["name"], "avatar": planner.get("avatar", "🧭"),
+                "content": "〔任务规划〕\n" + "\n".join(
+                    f"- {t['title']}（{t['agent_name']}）：{t['description']}" for t in valid),
+                "created_at": self._now(),
+            })
+            return valid
+        return task_cfgs
+
+    # ---------- Flows：事件驱动工作流（顺序步骤 + 条件分支，每次运行推进一个步骤） ----------
+    def run_flow_step(self, flow_cfg: Dict[str, Any], step: Dict[str, Any],
+                      input_text: str, emit: Callable[[Dict[str, Any]], None]) -> str:
+        agent_cfg = self.agent_by_name(step.get("agent_name", ""))
+        if agent_cfg is None:
+            msg = f"流程步骤「{step.get('name', '')}」关联的智能体不存在"
+            emit({"type": "flow_step", "status": "error", "agent": step.get("agent_name", ""), "message": msg})
+            return msg
+        emit({"type": "flow_step_start", "flow": flow_cfg["name"], "agent": agent_cfg["name"],
+              "step": step.get("name", ""), "task": step.get("action") or step.get("description", "")})
+        agent = self.build_agent(agent_cfg)
+        desc = step.get("action") or step.get("description") or "执行任务"
+        output = self._think(agent_cfg, desc, input_text, [], emit)
+        if agent.tools:
+            tool_out = self._call_tool(agent.tools[0], agent_cfg["name"], input_text, emit)
+            if tool_out:
+                output += "\n\n" + tool_out
+        emit({"type": "flow_step_done", "flow": flow_cfg["name"], "step": step.get("name", ""),
+              "agent": agent_cfg["name"], "output": output[:600]})
+        return output
+
     # ---------- 执行（生成器：产出 SSE 事件） ----------
     def run_crew(
         self,
@@ -312,56 +556,71 @@ class CrewRunEngine:
                     "content": f"〔管理者规划〕\n{manager_plan}", "created_at": self._now(),
                 })
 
-        # ---- 任务链执行（委派 + 上下文串联） ----
+        # ---- 顺序编排 + planning：planner 自动拆解任务清单 ----
+        if process == "sequential" and crew_cfg.get("planning"):
+            task_cfgs = self._plan_tasks(crew_cfg, task_cfgs, input_text, session_id, emit)
+
+        # ---- 任务链执行：无上游依赖的连续任务并入同一批次并行执行 ----
         outputs: List[str] = []
         outputs_map: Dict[str, str] = {}
         tasks_output: List[Dict[str, Any]] = []
-        for i, task_cfg in enumerate(task_cfgs):
-            agent_cfg = self.agent_by_name(task_cfg.get("agent_name", ""))
-            if agent_cfg is None:
-                emit({"type": "error", "message": f"任务 {task_cfg.get('title')} 关联的智能体不存在"})
-                continue
-            agent = self.build_agent(agent_cfg)
-            emit({"type": "agent_start", "index": i, "agent": agent_cfg["name"],
-                  "avatar": agent_cfg.get("avatar", "🤖"), "role": agent_cfg.get("role", ""),
-                  "task": task_cfg.get("description", "")})
 
-            # 1) 思考：任务描述 + 上游上下文（use_upstream / context）+ 管理者指示 + 知识检索（RAG）
-            output_type = task_cfg.get("output_type") or "text"
-            ctx_blocks = self._context_blocks(task_cfg, task_cfgs, outputs_map, manager_plan)
-            ctx_blocks += self._knowledge_blocks(task_cfg, agent_cfg, input_text, emit)
-            thinking = self._think(agent_cfg, task_cfg.get("description", ""), input_text,
-                                   ctx_blocks, emit, output_type=output_type)
+        batches: List[List[Dict[str, Any]]] = []
+        cur: List[Dict[str, Any]] = []
+        for task_cfg in task_cfgs:
+            depends = bool(task_cfg.get("use_upstream") or task_cfg.get("context"))
+            if process == "hierarchical" or depends:  # 层级模式与有依赖任务强制串行
+                if cur:
+                    batches.append(cur)
+                    cur = []
+                batches.append([task_cfg])
+            else:
+                cur.append(task_cfg)
+        if cur:
+            batches.append(cur)
 
-            # 2) 工具调用（JSON 任务不拼接工具文本，保证输出可解析）
-            tool_out = ""
-            if agent.tools and output_type != "json":
-                tool_out = self._call_tool(agent.tools[0], agent_cfg["name"], input_text, emit)
+        global_idx = 0
+        for batch in batches:
+            if len(batch) == 1:
+                results = [self._run_task(batch[0], global_idx, session_id, input_text,
+                                          outputs_map, manager_plan, task_cfgs, emit)]
+            else:
+                # 并行批次：各任务读取批次前的上下文快照，互不写共享状态
+                slots: List[Optional[Dict[str, Any]]] = [None] * len(batch)
+                snapshot = dict(outputs_map)
 
-            output = thinking + (("\n\n" + tool_out) if tool_out else "")
+                def worker(j: int, tc: Dict[str, Any]) -> None:
+                    slots[j] = self._run_task(tc, global_idx + j, session_id, input_text,
+                                              snapshot, manager_plan, task_cfgs, emit)
 
-            # 3) 任务级结构化输出（CrewOutput.tasks_output）
-            json_dict = self._parse_json(output) if output_type == "json" else None
-            tasks_output.append({
-                "task": task_cfg.get("title", f"任务{i + 1}"),
-                "agent": agent_cfg["name"],
-                "output_type": output_type,
-                "raw": output,
-                "json_dict": json_dict,
-            })
+                threads = [threading.Thread(target=worker, args=(j, tc), daemon=True)
+                           for j, tc in enumerate(batch)]
+                for th in threads:
+                    th.start()
+                for th in threads:
+                    th.join()
+                results = list(slots)
 
-            outputs.append(output)
-            outputs_map[task_cfg.get("title", f"任务{i + 1}")] = output
-            emit({"type": "agent_done", "agent": agent_cfg["name"], "output": output})
-            self.domain.update("agents", "id", agent_cfg["id"], {"status": "ready"})
-
-            # 4) 写会话消息
-            self.store.add_message(session_id, {
-                "id": f"m{i}-{int(time.time() * 1000)}",
-                "role": "agent", "agent": agent_cfg["name"],
-                "avatar": agent_cfg.get("avatar", "🤖"),
-                "content": output, "created_at": self._now(),
-            })
+            # 主线程合并（保持任务顺序与确定性）
+            for r in results:
+                if r is None:
+                    global_idx += 1
+                    continue
+                outputs.append(r["output"])
+                outputs_map[r["title"]] = r["output"]
+                title = r["title"]
+                tasks_output.append({
+                    "task": title, "agent": r["agent"],
+                    "output_type": r["output_type"], "raw": r["output"],
+                    "json_dict": r["json_dict"],
+                })
+                self.domain.update("agents", "id", r["agent_id"], {"status": "ready"})
+                self.store.add_message(session_id, {
+                    "id": f"m{global_idx}-{int(time.time() * 1000)}",
+                    "role": "agent", "agent": r["agent"],
+                    "avatar": "🤖", "content": r["output"], "created_at": self._now(),
+                })
+                global_idx += 1
 
         # ---- hierarchical：管理者汇总最终结论 ----
         if process == "hierarchical" and manager_cfg:
@@ -389,6 +648,9 @@ class CrewRunEngine:
                 result_json = json_tasks[0]["json_dict"]
             else:
                 result_json = {t["task"]: t["json_dict"] for t in json_tasks}
+
+        # ---- 长期记忆沉淀：本轮协作结论写入 memory 集合 ----
+        self._save_memory(session_id, crew_cfg["name"], result, emit)
 
         emit({"type": "crew_done", "result": result, "run_id": run_id,
               "outputs": tasks_output, "json_dict": result_json})

@@ -177,12 +177,15 @@ def delete_provider(pid: str):
 def list_tools():
     rows = []
     for name, t in _engine.tools_raw.items():
+        meta = _engine.tool_meta.get(name, {})
         rows.append({
             "name": name, "description": t.description,
             "requires_approval": t.requires_approval,
             "args": t.args_schema,
+            "category": meta.get("category", "其他"),
+            "real": bool(meta.get("real")),
         })
-    return {"tools": rows, "total": len(rows)}
+    return {"tools": rows, "total": len(rows), "categories": sorted({r["category"] for r in rows})}
 
 
 # =================== 协作会话 ===================
@@ -386,6 +389,139 @@ def search_knowledge(q: str = "", ids: str = "", top_k: int = 3):
     hits = retriever.search_docs(q, qv, docs, top_k=max(1, min(top_k, 10)))
     mode = f"embedding/{prov.get('model')}" if (isinstance(qv, list) and prov) else "local-hash"
     return {"query": q, "total": len(hits), "hits": hits, "embed_mode": mode}
+
+
+# =================== 流程编排（Flows：事件驱动工作流） ===================
+def _flow_view(f: Dict[str, Any]) -> Dict[str, Any]:
+    view = {k: v for k, v in f.items() if k != "steps"}
+    steps = f.get("steps") or []
+    total = len(steps)
+    done = sum(1 for s in steps if s.get("status") in ("done", "skipped"))
+    view["total_steps"] = total
+    view["done_steps"] = done
+    view["progress"] = round(done / total, 2) if total else 0
+    return view
+
+
+@router.get("/flows")
+def list_flows():
+    return {"flows": [_flow_view(f) for f in _store.all("flows")]}
+
+
+@router.get("/flows/{fid}")
+def get_flow(fid: str):
+    f = _store.get("flows", fid)
+    if f is None:
+        raise HTTPException(404, "流程不存在")
+    return f
+
+
+@router.post("/flows")
+def create_flow(payload: Dict[str, Any] = Body(...)):
+    rec = dict(payload)
+    rec["id"] = rec.get("id") or _new_id()
+    for s in (rec.get("steps") or []):
+        s.setdefault("status", "pending")
+    rec.setdefault("steps", [])
+    rec.setdefault("current", 0)
+    rec.setdefault("status", "未启动")
+    rec.setdefault("created_at", _now())
+    return _store.save("flows", rec)
+
+
+@router.put("/flows/{fid}")
+def update_flow(fid: str, payload: Dict[str, Any] = Body(...)):
+    if _store.get("flows", fid) is None:
+        raise HTTPException(404, "流程不存在")
+    rec = dict(payload)
+    rec.pop("id", None)
+    _store.update("flows", fid, rec)
+    return {"ok": True}
+
+
+@router.delete("/flows/{fid}")
+def delete_flow(fid: str):
+    if not _store.delete("flows", fid):
+        raise HTTPException(404, "流程不存在")
+    return {"ok": True}
+
+
+@router.post("/flows/{fid}/reset")
+def reset_flow(fid: str):
+    f = _store.get("flows", fid)
+    if f is None:
+        raise HTTPException(404, "流程不存在")
+    steps = f.get("steps") or []
+    for s in steps:
+        s["status"] = "pending"
+        s.pop("output", None)
+    _store.update("flows", fid, {"steps": steps, "current": 0, "status": "未启动", "last_output": None})
+    return {"ok": True}
+
+
+@router.post("/flows/{fid}/run")
+def run_flow(fid: str, payload: Dict[str, Any] = Body(...)):
+    """推进流程一个步骤：SSE 事件流（跳过条件未命中的步骤）。"""
+    f = _store.get("flows", fid)
+    if f is None:
+        raise HTTPException(404, "流程不存在")
+    if len(f.get("steps") or []) == 0:
+        raise HTTPException(400, "流程无步骤")
+    input_text = (payload.get("input") or "").strip() or "流程环节"
+
+    def event_stream():
+        q: "queue.Queue[Optional[dict]]" = queue.Queue()
+        emit = q.put
+
+        def _run():
+            try:
+                steps = f.get("steps") or []
+                idx = int(f.get("current") or 0)
+                while idx < len(steps):
+                    step = steps[idx]
+                    cond = (step.get("if_contains") or "").strip()
+                    prev_out = ""
+                    if idx > 0:
+                        prev_out = (steps[idx - 1].get("output") or "")
+                    if cond and cond not in (prev_out or ""):
+                        step["status"] = "skipped"
+                        emit({"type": "flow_step", "status": "skipped", "step": step.get("name", ""),
+                              "condition": cond, "message": "上一步输出未命中条件，跳过该步骤"})
+                        idx += 1
+                        _store.update("flows", fid, {"steps": steps, "current": idx})
+                        continue
+                    step["status"] = "running"
+                    _store.update("flows", fid, {"steps": steps, "current": idx, "status": "运行中"})
+                    output = _engine.run_flow_step(f, step, input_text, emit)
+                    step["output"] = output
+                    step["status"] = "done"
+                    idx += 1
+                    _store.update("flows", fid, {
+                        "steps": steps, "current": idx,
+                        "last_output": output[:300],
+                        "status": "已完成" if idx >= len(steps) else "运行中",
+                    })
+                    break  # 每次推进一个步骤
+            except Exception as exc:  # noqa: BLE001
+                emit({"type": "error", "message": str(exc)})
+            finally:
+                emit(None)
+
+        threading.Thread(target=_run, daemon=True).start()
+        while True:
+            try:
+                item = q.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            if item is None:
+                break
+            yield f"data: {json.dumps(item, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # =================== 记忆 ===================

@@ -122,7 +122,7 @@ export default function Agents() {
                 {tools.map((t) => (
                   <label key={t.name} style={{ display: "flex", alignItems: "center", gap: 6, background: "#10182b", border: "1px solid var(--border2)", borderRadius: 9, padding: "6px 10px", fontSize: 12.5, cursor: "pointer" }}>
                     <input type="checkbox" name="tools" value={t.name} defaultChecked={(editing.tools || []).includes(t.name)} />
-                    {t.name}{t.requires_approval ? " 🛡" : ""}
+                    {t.name}{t.real ? "" : "（演示）"}{t.requires_approval ? " 🛡" : ""}
                   </label>
                 ))}
               </div>

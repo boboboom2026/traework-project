@@ -29,6 +29,7 @@ class PlatformStore:
         d.set_seed("traces", [])
         d.set_seed("knowledge", SEED_KNOWLEDGE)
         d.set_seed("memory", [])
+        d.set_seed("flows", [])
         d.set_seed("approvals", [])
 
     # ---------- 通用 ----------

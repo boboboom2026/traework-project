@@ -11,7 +11,7 @@
     "tools": [
       "web_search"
     ],
-    "memory": false,
+    "memory": true,
     "allow_delegation": false,
     "status": "ready",
     "avatar": "🔍"

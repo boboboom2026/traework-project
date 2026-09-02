@@ -64,6 +64,11 @@ def _dot(a: Any, b: Any) -> float:
     return sum(w * large.get(k, 0.0) for k, w in small.items())
 
 
+def score(query: str, text: str) -> float:
+    """两条文本的本地哈希余弦相似度（记忆等轻量场景用）。"""
+    return _dot(embed(query), embed(text))
+
+
 def chunk_text(text: str, size: int = _CHUNK_SIZE, overlap: int = _CHUNK_OVERLAP) -> List[str]:
     """按段落切块，长段落硬切，块间保留重叠。"""
     paras = [p.strip() for p in re.split(r"\n+", (text or "")) if p.strip()]

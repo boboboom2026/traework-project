@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Workbench from "./pages/Workbench.jsx";
 import Agents from "./pages/Agents.jsx";
 import Crews from "./pages/Crews.jsx";
+import Flows from "./pages/Flows.jsx";
 import Tools from "./pages/Tools.jsx";
 import Knowledge from "./pages/Knowledge.jsx";
 import Memory from "./pages/Memory.jsx";
@@ -16,6 +17,7 @@ const NAV = [
   { id: "workbench", label: "协作工作台", icon: "☰", group: "协作核心" },
   { id: "agents", label: "智能体配置", icon: "✧", group: "协作核心" },
   { id: "crews", label: "协作编排配置", icon: "⛓", group: "协作核心" },
+  { id: "flows", label: "流程编排 Flows", icon: "◈", group: "协作核心" },
   { id: "tools", label: "工具库", icon: "🛠", group: "资产与能力" },
   { id: "knowledge", label: "知识库", icon: "▤", group: "资产与能力" },
   { id: "memory", label: "记忆管理", icon: "◔", group: "资产与能力" },
@@ -26,6 +28,7 @@ const NAV = [
 
 const PAGES = {
   dashboard: Dashboard, workbench: Workbench, agents: Agents, crews: Crews,
+  flows: Flows,
   tools: Tools, knowledge: Knowledge, memory: Memory,
   providers: Providers, traces: Traces, governance: Governance,
 };
@@ -104,6 +107,7 @@ const PAGE_SUB = {
   workbench: "群聊式多智能体对话协作（群 / 任务）",
   agents: "定义身份、目标、模型与可用工具",
   crews: "组装智能体与任务，定义协作流程与运行输入",
+  flows: "事件驱动工作流：顺序步骤 + 条件分支，逐步推进",
   tools: "浏览与启用 CrewAI 工具能力",
   knowledge: "企业文档与知识资产（RAG）",
   memory: "作用域记忆的浏览与重置",
