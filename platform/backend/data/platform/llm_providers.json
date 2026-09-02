@@ -9,5 +9,16 @@
     "temperature": 0.2,
     "builtin": true,
     "notes": "内置演示模型：无需 API Key，确定性输出，用于跑通平台全流程"
+  },
+  {
+    "name": "DeepSeek",
+    "provider": "openai_compatible",
+    "model": "deepseek-chat",
+    "api_key": "sk-f58e52cddd004adf9e96951f1207e419",
+    "base_url": "https://api.deepseek.com/v1",
+    "temperature": 0.3,
+    "notes": "DeepSeek 官方 API（OpenAI 兼容），模型 deepseek-chat",
+    "id": "adb19868",
+    "builtin": false
   }
 ]

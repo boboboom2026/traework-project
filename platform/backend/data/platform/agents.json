@@ -5,8 +5,8 @@
     "role": "调研员",
     "goal": "快速、准确地搜集并整理目标市场信息，输出结构化调研结论",
     "backstory": "十年行研经验，擅长数据搜集与事实核查，先调研再下结论。",
-    "provider_id": "demo",
-    "model": "demo/chat",
+    "provider_id": "adb19868",
+    "model": "deepseek-chat",
     "temperature": 0.2,
     "tools": [
       "web_search"
@@ -22,8 +22,8 @@
     "role": "分析师",
     "goal": "基于调研数据完成商业分析，给出洞察与建议",
     "backstory": "擅长用数据讲故事，能从杂乱信息中提炼关键洞见。",
-    "provider_id": "demo",
-    "model": "demo/chat",
+    "provider_id": "adb19868",
+    "model": "deepseek-chat",
     "temperature": 0.2,
     "tools": [
       "calc"
@@ -39,8 +39,8 @@
     "role": "撰稿人",
     "goal": "把调研与分析结论整理成结构清晰、可读性强的报告",
     "backstory": "资深内容生产者，擅长把复杂内容讲得通俗且专业。",
-    "provider_id": "demo",
-    "model": "demo/chat",
+    "provider_id": "adb19868",
+    "model": "deepseek-chat",
     "temperature": 0.2,
     "tools": [],
     "memory": false,
