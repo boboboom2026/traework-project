@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>点餐系统 · 商家端</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; background:#f6f5f1; color:#2b2b2b; }
+  header { position:sticky; top:0; z-index:50; background:#fff; border-bottom:1px solid #eee; }
+  .wrap { max-width:1080px; margin:0 auto; padding:0 20px; }
+  .hd { display:flex; align-items:center; justify-content:space-between; padding:12px 0; }
+  .brand { display:flex; align-items:center; gap:10px; font-size:17px; font-weight:700; }
+  .brand .dot { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#2f80ed,#5b7cfa); color:#fff; display:flex; align-items:center; justify-content:center; font-size:17px; }
+  .hd-right { font-size:12px; color:#999; }
+  nav { display:flex; gap:4px; }
+  nav button { border:none; background:transparent; padding:12px 18px; font-size:14px; color:#666; cursor:pointer; border-bottom:2px solid transparent; }
+  nav button.active { color:#2f80ed; border-color:#2f80ed; font-weight:600; }
+  nav button .cnt { background:#f0f0f0; border-radius:999px; padding:1px 7px; font-size:11px; margin-left:4px; color:#666; }
+  nav button.active .cnt { background:#e3edfd; color:#2f80ed; }
+  main { padding:20px 0 60px; }
+  .filters { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .chip { border:1px solid #e5e5e5; background:#fff; border-radius:999px; padding:5px 13px; font-size:12px; color:#555; cursor:pointer; }
+  .chip.active { background:#2f80ed; border-color:#2f80ed; color:#fff; }
+  .card { background:#fff; border-radius:14px; padding:14px 16px; margin-bottom:10px; box-shadow:0 1px 4px rgba(0,0,0,.04); }
+  .ap-title { font-size:14px; font-weight:600; }
+  .ap-title .tag { color:#2f80ed; }
+  .ap-title .warn { color:#ff4d4f; font-weight:700; }
+  .ap-meta { font-size:12px; color:#999; margin-top:4px; }
+  .ap-meta .danger { color:#ff4d4f; font-weight:600; }
+  .ap-foot { display:flex; justify-content:space-between; align-items:center; margin-top:12px; }
+  .span { font-size:11px; color:#bbb; }
+  .btns { display:flex; gap:8px; }
+  .btn { border:none; border-radius:9px; padding:7px 18px; font-size:13px; cursor:pointer; font-weight:600; }
+  .btn-ok { background:#e8f7ee; color:#1a8a4c; }
+  .btn-no { background:#ffefee; color:#d93848; }
+  .btn-ok:disabled { background:#f4f4f4; color:#c0c0c0; cursor:not-allowed; }
+  .badge { padding:3px 11px; border-radius:999px; font-size:12px; white-space:nowrap; }
+  .b-已下单 { background:#fff4e6; color:#e88406; }
+  .b-制作中 { background:#e8f0fe; color:#2b6cd4; }
+  .b-待出餐 { background:#ede7fe; color:#7c4dff; }
+  .b-已出餐 { background:#e6f7ff; color:#0899c4; }
+  .b-已完成 { background:#e8f7ee; color:#1a8a4c; }
+  .b-pending { background:#fff4e6; color:#e88406; }
+  .b-approved { background:#e8f7ee; color:#1a8a4c; }
+  .b-rejected { background:#ffefee; color:#d93848; }
+  .ord-head { display:flex; justify-content:space-between; align-items:center; }
+  .ord-name { font-weight:600; font-size:14px; }
+  .ord-dishs { font-size:13px; color:#555; margin:6px 0 3px; }
+  .ord-meta { font-size:11px; color:#aaa; }
+  .ord-foot { display:flex; justify-content:space-between; align-items:center; margin-top:12px; }
+  .btn-next { border:none; border-radius:9px; padding:7px 20px; font-size:13px; cursor:pointer; font-weight:600; background:linear-gradient(135deg,#2f80ed,#5b7cfa); color:#fff; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:18px; }
+  .kpi { background:#fff; border-radius:14px; padding:18px; box-shadow:0 1px 4px rgba(0,0,0,.04); }
+  .kpi .lb { font-size:12px; color:#999; }
+  .kpi .vl { font-size:26px; font-weight:700; margin-top:6px; }
+  .kpi .vl.red { color:#ff4d4f; }
+  .bar { background:#f2f2f0; border-radius:8px; height:8px; margin-top:6px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:linear-gradient(90deg,#2f80ed,#5b7cfa); border-radius:8px; }
+  .empty { color:#bbb; text-align:center; padding:26px 0; font-size:13px; }
+  .toast { position:fixed; left:50%; bottom:40px; transform:translateX(-50%); background:rgba(30,30,30,.92); color:#fff; padding:10px 20px; border-radius:10px; font-size:13px; z-index:99; opacity:0; transition:.25s; pointer-events:none; }
+  .toast.show { opacity:1; bottom:56px; }
+  .hint-invalid { font-size:11px; color:#ff4d4f; font-weight:600; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="hd">
+      <div class="brand"><div class="dot">店</div>川渝小馆 · 商家工作台 <span style="font-size:12px;color:#999;font-weight:400">审批 / 订单 / 概览</span></div>
+      <div class="hd-right">数据每 8 秒自动刷新 · <a href="/" style="color:#2f80ed">用户端 ↗</a></div>
+    </div>
+    <nav>
+      <button id="tab-approve" class="active" onclick="switchTab('approve')">审批<span class="cnt" id="cntApprove">0</span></button>
+      <button id="tab-orders" onclick="switchTab('orders')">订单<span class="cnt" id="cntOrders">0</span></button>
+      <button id="tab-dash" onclick="switchTab('dash')">概览</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="view-approve">
+    <div class="filters" id="apFilters">
+      <button class="chip active" data-f="pending" onclick="setApFilter('pending')">待审批</button>
+      <button class="chip" data-f="handled" onclick="setApFilter('handled')">已处理</button>
+    </div>
+    <div id="apList"><div class="empty">暂无待办</div></div>
+  </section>
+
+  <section id="view-orders" style="display:none">
+    <div class="filters" id="odFilters"></div>
+    <div id="odList"><div class="empty">暂无订单</div></div>
+  </section>
+
+  <section id="view-dash" style="display:none">
+    <div class="kpis" id="kpis"></div>
+    <div class="card">
+      <b style="font-size:14px">订单状态分布</b>
+      <div id="statusBars" style="margin-top:12px"></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 状态机定义（与线上一致，只前进不可回退） =====
+var ORDER_STEPS = ["已下单", "制作中", "待出餐", "已出餐", "已完成"];
+var NEXT = {
+  "已下单": ["制作中", "接单"],
+  "制作中": ["待出餐", "出餐"],
+  "待出餐": ["已出餐", "送达"],
+  "已出餐": ["已完成", "完成"]
+};
+
+var MENU = [], APPROVALS = [], ORDERS = [];
+var currentTab = "approve", apFilter = "pending", odFilter = "全部";
+var $ = function (id) { return document.getElementById(id); };
+
+function toast(msg) {
+  var t = $("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._t); t._t = setTimeout(function () { t.classList.remove("show"); }, 2400);
+}
+function api(path, opts) {
+  var headers = { "Content-Type": "application/json", "X-Role": "merchant" };
+  return fetch(path, Object.assign({ headers: headers }, opts || {}))
+    .then(function (r) { return r.json().catch(function () { return {}; }); });
+}
+// 与线上 SDK 对齐的数据更新入口
+var sdk = {
+  data: {
+    update: function (collection, id, patch) {
+      if (collection === "orders") {
+        return api("/api/orders/" + encodeURIComponent(id) + "/status", { method: "POST", body: JSON.stringify(patch) });
+      }
+      return api("/api/approvals/" + id + "/decide", { method: "POST", body: JSON.stringify(patch) });
+    }
+  }
+};
+
+// ===== 审批 args 解析：兼容 Python dict 字符串（单引号）与 JSON =====
+function parseArgs(argsStr) {
+  if (!argsStr) return { dish_ids: [], seat_count: 1 };
+  // 直接正则提取 dish_ids 与 seat_count，兼容 {'dish_ids': [3,9]} 与 {"dish_ids":[3,9]}
+  var dm = argsStr.match(/['"]?dish_ids['"]?\s*[:=]\s*\[([^\]]*)\]/);
+  var sm = argsStr.match(/['"]?seat_count['"]?\s*[:=]\s*(\d+)/);
+  var ids = [];
+  if (dm) {
+    ids = dm[1].split(",").map(function (s) { return s.replace(/[^0-9]/g, ""); })
+                 .filter(Boolean).map(Number);
+  }
+  var seat = sm ? parseInt(sm[1], 10) : 1;
+  return { dish_ids: ids, seat_count: seat };
+}
+function dishById(id) { for (var i = 0; i < MENU.length; i++) if (MENU[i].id === id) return MENU[i]; return null; }
+
+// 生成订单参数的描述：「菜名、菜名 · 共N道 · 合计￥xx · N人」
+// 空参数返回 { invalid: true }
+function describeOrderArgs(argsStr) {
+  var a = parseArgs(argsStr);
+  if (!a.dish_ids.length) return { invalid: true };
+  var names = [], total = 0, seen = {};
+  a.dish_ids.forEach(function (id) {
+    var d = dishById(id);
+    if (!d) return;
+    total += d.price;
+    if (!seen[id]) { seen[id] = true; names.push(d.emoji + d.name); }
+  });
+  var distinct = Object.keys(seen).length;
+  var seat = a.seat_count || 1;
+  return {
+    invalid: false,
+    text: names.join("、") + " · 共" + distinct + "道 · 合计￥" + total + " · " + seat + "人",
+    total: total, count: distinct, seat: seat
+  };
+}
+
+// ===== 审批 =====
+function setApFilter(f) {
+  apFilter = f;
+  var btns = $("apFilters").querySelectorAll(".chip");
+  for (var i = 0; i < btns.length; i++) btns[i].classList.toggle("active", btns[i].getAttribute("data-f") === f);
+  renderApprovals();
+}
+function stBadge(status) { return '<span class="badge b-' + status + '">' + status + '</span>'; }
+
+function renderApprovals() {
+  var rows = APPROVALS.filter(function (a) {
+    if (apFilter === "pending") return a.status === "pending";
+    return a.status !== "pending";
+  });
+  if (!rows.length) {
+    $("apList").innerHTML = '<div class="empty">' + (apFilter === "pending" ? "暂无待办" : "暂无已处理记录") + '</div>';
+    return;
+  }
+  var html = "";
+  rows.forEach(function (a) {
+    var d = describeOrderArgs(a.args);
+    // 标题格式：order_process · [下单] 番茄牛腩煲、水煮鱼 · 共2道 · 合计￥156 · 3人
+    var head = a.tool + (a.action ? " · " + a.action : "");
+    var title = '<span class="tag">' + head + '</span> ' + (d.invalid
+      ? '<span class="warn">⚠️ 无效订单（未选择任何菜品），建议拒绝</span>'
+      : d.text);
+    var meta = a.requester + " · " + (a.created_at || "") + (d.invalid ? ' <span class="danger">参数缺失，请拒绝</span>' : "");
+    var btns = "";
+    if (a.status === "pending") {
+      btns = '<div class="btns">' +
+        '<button class="btn btn-ok" onclick="decide(\'' + a.id + '\',\'approved\')"' + (d.invalid ? " disabled title='参数缺失，请拒绝'" : "") + '>通过</button>' +
+        '<button class="btn btn-no" onclick="decide(\'' + a.id + '\',\'rejected\')">拒绝</button></div>';
+    } else {
+      btns = stBadge(a.status === "approved" ? "已通过" : "已拒绝");
+    }
+    html += '<div class="card"><div class="ap-title">' + title + '</div>' +
+      '<div class="ap-meta">' + meta + '</div>' +
+      (d.invalid ? '<div class="hint-invalid">⚠️ 该记录参数为空（dish_ids=[]），为异常单，已禁用「通过」，请直接拒绝</div>' : "") +
+      '<div class="ap-foot"><span class="span">' + (a.reason ? "审批备注：" + a.reason : "「通过」后智能体才执行下单：核价 → 验库存 → 扣库存 → 生成订单") + '</span>' + btns + '</div></div>';
+  });
+  $("apList").innerHTML = html;
+}
+function decide(id, decision) {
+  sdk.data.update("approvals", id, { decision: decision }).then(function () {
+    toast(decision === "approved" ? "已通过，智能体正在执行下单…" : "已拒绝，智能体不执行下单");
+    refresh();
+  });
+}
+
+// ===== 订单 =====
+function renderOrderFilters() {
+  var counts = { "全部": ORDERS.length };
+  ORDER_STEPS.forEach(function (s) { counts[s] = 0; });
+  ORDERS.forEach(function (o) { counts[o.status] = (counts[o.status] || 0) + 1; });
+  var html = "";
+  ["全部"].concat(ORDER_STEPS).forEach(function (s) {
+    html += '<button class="chip' + (odFilter === s ? " active" : "") + '" onclick="setOdFilter(\'' + s + '\')">' + s + ' <b style="color:#999">' + (counts[s] || 0) + '</b></button>';
+  });
+  $("odFilters").innerHTML = html;
+}
+function setOdFilter(f) { odFilter = f; renderOrderFilters(); renderOrders(); }
+
+function renderOrders() {
+  var rows = odFilter === "全部" ? ORDERS : ORDERS.filter(function (o) { return o.status === odFilter; });
+  if (!rows.length) { $("odList").innerHTML = '<div class="empty">没有匹配的订单</div>'; return; }
+  var html = "";
+  rows.forEach(function (o) {
+    var nxt = NEXT[o.status];
+    var btn = nxt
+      ? '<button class="btn-next" data-next="' + o.order_no + '" data-to="' + nxt[0] + '">' + nxt[1] + '</button>'
+      : stBadge("已完成");
+    html += '<div class="card"><div class="ord-head"><span class="ord-name">' + o.order_no + '</span>' + stBadge(o.status) + '</div>' +
+      '<div class="ord-dishs">' + (o.dish_names || []).join("、") + '</div>' +
+      '<div class="ord-meta">' + (o.created_at || "") + ' · ' + (o.seat_count || 1) + '人 · 合计 <b style="color:#ff4d4f">￥' + o.total + '</b></div>' +
+      '<div class="ord-foot"><span class="span">' + (nxt ? ("状态推进：" + o.status + " → " + nxt[0]) : "终态，无后续操作") + '</span>' + btn + '</div></div>';
+  });
+  $("odList").innerHTML = html;
+}
+
+// 事件委托：点击「推进」按钮 → 写后端 → 刷新
+document.addEventListener("click", function (e) {
+  var nx = e.target.closest ? e.target.closest("[data-next]") : null;
+  if (!nx) return;
+  var id = nx.getAttribute("data-next"), to = nx.getAttribute("data-to");
+  sdk.data.update("orders", id, { status: to }).then(function () {
+    toast("订单状态已更新 → " + to);
+    refresh();
+  });
+});
+
+// ===== 概览 =====
+function renderDash() {
+  // 待处理订单 = status === "已下单" 的数量（接单后该数字下降）
+  var pending = ORDERS.filter(function (o) { return o.status === "已下单"; }).length;
+  var revenue = ORDERS.reduce(function (s, o) { return s + o.total; }, 0);
+  var completed = ORDERS.filter(function (o) { return o.status === "已完成"; }).length;
+  var low = MENU.filter(function (d) { return d.inventory <= 3; });
+  $("kpis").innerHTML =
+    '<div class="kpi"><div class="lb">待处理订单</div><div class="vl red">' + pending + '</div></div>' +
+    '<div class="kpi"><div class="lb">订单总数</div><div class="vl">' + ORDERS.length + '</div></div>' +
+    '<div class="kpi"><div class="lb">营收合计</div><div class="vl">￥' + revenue + '</div></div>' +
+    '<div class="kpi"><div class="lb">已完成</div><div class="vl">' + completed + '</div></div>' +
+    '<div class="kpi"><div class="lb">库存告急</div><div class="vl ' + (low.length ? "red" : "") + '">' + low.length + '</div></div>';
+  var max = Math.max(1, ORDERS.length);
+  var bars = ORDER_STEPS.map(function (s) {
+    var n = ORDERS.filter(function (o) { return o.status === s; }).length;
+    return '<div style="margin-bottom:10px;font-size:12px"><div style="display:flex;justify-content:space-between;margin-bottom:2px"><span>' + s + '</span><span style="color:#999">' + n + ' 单</span></div><div class="bar"><i style="width:' + Math.round(n / max * 100) + '%"></i></div></div>';
+  }).join("");
+  $("statusBars").innerHTML = bars;
+}
+
+// ===== 拉取 =====
+function switchTab(t) {
+  currentTab = t;
+  ["approve", "orders", "dash"].forEach(function (x) {
+    $("tab-" + x).classList.toggle("active", x === t);
+    $("view-" + x).style.display = x === t ? "" : "none";
+  });
+  if (t === "orders") { renderOrderFilters(); renderOrders(); }
+  if (t === "dash") renderDash();
+}
+function refresh() {
+  api("/api/menu").then(function (r) {
+    MENU = r.menu || [];
+    if (currentTab === "approve") renderApprovals();
+    if (currentTab === "dash") renderDash();
+  });
+  api("/api/approvals").then(function (r) {
+    APPROVALS = r.approvals || [];
+    $("cntApprove").textContent = APPROVALS.filter(function (a) { return a.status === "pending"; }).length;
+    if (currentTab === "approve") renderApprovals();
+  });
+  api("/api/orders").then(function (r) {
+    ORDERS = r.orders || [];
+    $("cntOrders").textContent = ORDERS.length;
+    if (currentTab === "orders") { renderOrderFilters(); renderOrders(); }
+    if (currentTab === "dash") renderDash();
+  });
+}
+
+// 每 8 秒自动轮询（审批 + 订单 + 概览随之刷新）
+refresh();
+setInterval(refresh, 8000);
+</script>
+</body>
+</html>

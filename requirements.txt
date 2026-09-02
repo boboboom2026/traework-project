@@ -1,0 +1,7 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+
+# ---- 可选：真实 CrewAI 底座（Python <= 3.12 环境，且需配置 LLM API Key） ----
+# crewai>=0.80
+# 说明：本仓库默认使用自带确定性执行器（无需 LLM 即可跑通下单→审批→订单全流程），
+#       其智能体/工具/任务结构与 crewai 完全对齐，可平滑切换到真实 CrewAI。
