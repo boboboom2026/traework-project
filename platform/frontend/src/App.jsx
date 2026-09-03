@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { get } from "./api.js";
 import Dashboard from "./pages/Dashboard.jsx";
 import Workbench from "./pages/Workbench.jsx";
@@ -73,51 +73,25 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* 最左侧图标导轨 */}
+      {/* 最左侧图标导轨（唯一导航：分组分隔 + 悬浮标签） */}
       <aside className="rail">
-        <div className="rmark" title="CrewAI 底座">C</div>
+        <div className="rmark" title="企业 AI 协作办公平台 · CrewAI 底座">C</div>
         <div className="rail-items">
-          {NAV.map((n) => (
-            <div key={n.id} className={"rail-item" + (page === n.id ? " active" : "")}
-              data-label={n.label} onClick={() => setPage(n.id)}>
-              {ICONS[n.id]}
-            </div>
+          {[...new Set(NAV.map((n) => n.group))].map((g, gi) => (
+            <Fragment key={g}>
+              {gi > 0 && <div className="rail-gap" />}
+              {NAV.filter((n) => n.group === g).map((n) => (
+                <div key={n.id} className={"rail-item" + (page === n.id ? " active" : "")}
+                  data-label={n.label} onClick={() => setPage(n.id)}>
+                  {ICONS[n.id]}
+                </div>
+              ))}
+            </Fragment>
           ))}
         </div>
         <div className="rail-foot">
           <div className="rail-av">🧑‍💼</div>
           <span className={"rail-dot" + (health ? " on" : "")} title={health ? "网关在线" : "网关离线"} />
-        </div>
-      </aside>
-
-      {/* 侧栏：分组导航 */}
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="lg">C</div>
-          <div>
-            <h1>企业 AI 协作办公平台</h1>
-            <small>CrewAI 多智能体底座</small>
-          </div>
-        </div>
-        <nav className="nav">
-          {[...new Set(NAV.map((n) => n.group))].map((g) => (
-            <div key={g}>
-              <div className="grp">{g}</div>
-              {NAV.filter((n) => n.group === g).map((n) => (
-                <a key={n.id} className={page === n.id ? "active" : ""} onClick={() => setPage(n.id)}>
-                  <span className="ic">{ICONS[n.id]}</span>
-                  {n.label}
-                </a>
-              ))}
-            </div>
-          ))}
-        </nav>
-        <div className="side-foot">
-          <div className="st">
-            <span className={"dot" + (health ? " on" : " off")} />
-            {health ? "后端网关运行中" : "后端网关不可达"}
-          </div>
-          <div className="st" style={{ marginTop: 4 }}>agent_framework · v2.1</div>
         </div>
       </aside>
 
