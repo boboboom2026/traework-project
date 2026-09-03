@@ -221,5 +221,19 @@
     "created_at": "2026-09-02 09:00:00",
     "updated_at": "2026-09-02 16:06:51",
     "starred": true
+  },
+  {
+    "name": "test",
+    "kind": "task",
+    "crew_id": "c1f60978",
+    "members": [
+      "资深市场调研员",
+      "数据分析师"
+    ],
+    "id": "4deb5d75",
+    "messages": [],
+    "starred": false,
+    "created_at": "2026-09-03 14:30:21",
+    "updated_at": "2026-09-03 14:30:21"
   }
 ]
