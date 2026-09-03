@@ -275,7 +275,7 @@ export default function Workbench({ onNav }) {
 
         {!session ? (
           <div className="empty" style={{ flex: 1, display: "grid", placeItems: "center" }}>
-            <div>选择一个会话开始协作，或前往 协作编排配置 创建新的智能体团队</div>
+            <div>选择一个会话开始协作，或前往 协作编排 创建新的智能体团队</div>
           </div>
         ) : (
           <>

@@ -71,7 +71,7 @@ export default function Flows() {
   return (
     <div>
       <div className="panel-h">
-        <h3>流程编排（Flows）· {flows.length} 个</h3>
+        <h3>流程型 · Flows（事件驱动状态机）· {flows.length} 个</h3>
         <button className="btn pri" onClick={() => setEditing({ steps: [] })}>＋ 新建流程</button>
       </div>
       {flows.length ? (
