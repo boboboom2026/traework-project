@@ -48,6 +48,31 @@ app.include_router(platform_router)
 app.include_router(gateway_router)
 
 
+def _ensure_builtin_flows() -> None:
+    """把应用侧内置业务流模板 seed 进平台 flows（幂等）：点餐业务流 → 平台流程编排可见、可运行、可覆盖。"""
+    import app_gateway
+    tpl = app_gateway.BUILTIN_MENU_ORDER_FLOW
+    if any(f.get("name") == tpl["name"] for f in _store.all("flows")):
+        return
+    _store.save("flows", {
+        "id": tpl["id"],
+        "name": tpl["name"],
+        "description": tpl["description"],
+        "builtin": True,
+        "steps": [
+            {"id": f"b{i}", "name": s.get("name", ""), "agent_name": "", "action": s.get("action", ""),
+             "if_contains": "", "status": "pending"}
+            for i, s in enumerate(tpl.get("steps") or [])
+        ],
+        "status": "未启动",
+        "current": 0,
+    })
+
+
+# 首次启动 seed 内置业务流（重启幂等；同名字段对「点餐业务流」模板覆盖生效）
+_ensure_builtin_flows()
+
+
 @app.get("/api/platform/apps")
 def platform_apps():
     """底座注册的托管应用列表。"""

@@ -513,6 +513,12 @@ def _flow_view(f: Dict[str, Any]) -> Dict[str, Any]:
     view["total_steps"] = total
     view["done_steps"] = done
     view["progress"] = round(done / total, 2) if total else 0
+    # 精简 steps 元数据（供前端节点画布渲染，不含 action/output 详情）
+    view["steps"] = [
+        {"id": s.get("id"), "name": s.get("name"), "agent_name": s.get("agent_name"),
+         "status": s.get("status", "pending")}
+        for s in steps
+    ]
     return view
 
 

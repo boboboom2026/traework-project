@@ -1,8 +1,32 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { del, get, post, put } from "../api.js";
 import { streamSSE } from "../api.js";
 
 const STEP_STATUS = { pending: "待执行", running: "执行中", done: "已完成", skipped: "已跳过" };
+
+// 横向节点画布：状态机步骤链（状态色顶边 + 序号 + 执行智能体）
+const NODE_COLOR = { done: "var(--ok)", running: "var(--accent)", skipped: "var(--dim)", pending: "var(--border2)" };
+function FlowCanvas({ steps = [], style }) {
+  if (!steps.length) return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", ...style }}>
+      {steps.map((s, i) => (
+        <Fragment key={s.id || i}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid var(--border)",
+            borderTop: `2px solid ${NODE_COLOR[s.status] || NODE_COLOR.pending}`, borderRadius: 10, padding: "5px 10px", minWidth: 92,
+            boxShadow: "var(--shadow)" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)" }}>{i + 1}</span>
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, lineHeight: 1.25 }}>{s.name || "步骤"}</div>
+              <div style={{ fontSize: 10, color: "var(--dim)" }}>{s.agent_name ? `↳ ${s.agent_name}` : "未绑定"}</div>
+            </div>
+          </div>
+          {i < steps.length - 1 && <span style={{ color: "var(--dim)", fontSize: 13, flex: "none" }}>→</span>}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
 
 export default function Flows() {
   const [flows, setFlows] = useState([]);
@@ -60,6 +84,7 @@ export default function Flows() {
                 </div>
               </div>
               <div className="role">{f.description}</div>
+              <FlowCanvas steps={f.steps || []} style={{ margin: "10px 0 4px" }} />
               <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0" }}>
                 <div style={{ flex: 1, height: 6, background: "var(--bg2)", borderRadius: 3 }}>
                   <div style={{ width: `${(f.progress || 0) * 100}%`, height: 6, background: "var(--brand)", borderRadius: 3 }} />
@@ -167,6 +192,7 @@ function FlowRun({ flow, agents, onClose }) {
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
         <h2>流程 · {flow.name} <span className={"tag " + (detail.status === "已完成" ? "ok" : detail.status === "运行中" ? "warn" : "neutral")}>{detail.status}</span></h2>
         <div className="hint" style={{ marginBottom: 10 }}>{flow.description} · 每次点击「运行」推进一个步骤（或跳过条件未命中的步骤）</div>
+        <FlowCanvas steps={steps} style={{ marginBottom: 12 }} />
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
           {steps.map((s, i) => (
             <div key={s.id || i} style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: 10 }}>
