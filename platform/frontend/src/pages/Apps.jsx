@@ -25,40 +25,45 @@ export default function Apps() {
       )}
       {apps.length ? (
         <div className="cards">
-          {apps.map((a) => (
-            <div className="ag-card" key={a.app_id}>
-              <div className="hd">
-                <div className="nm"><span className="em">▦</span>{a.name}
-                  <span className="tag neutral">{a.app_id}</span>
-                  <span className={"tag " + (a.enabled ? "ok" : "warn")}>{a.enabled ? "已启用" : "已停用"}</span>
-                  {!a.flow_bound && a.flow_ref && <span className="tag warn">流程未绑定</span>}
+          {apps.map((a, idx) => {
+            const grades = [
+              "linear-gradient(120deg,#1E3E7E,#3A6BC4 55%,#62B3E0)",
+              "linear-gradient(120deg,#C8532B,#F26B3A 60%,#F5A96B)",
+              "linear-gradient(120deg,#1F7A52,#2E9E6B 55%,#6FC79B)",
+              "linear-gradient(120deg,#1E546E,#2E7FA0 55%,#62B9C9)",
+            ];
+            return (
+              <div className="ag-card" key={a.app_id} style={{ padding: 0, overflow: "hidden", gap: 0 }}>
+                <div className="app-cover" style={{ background: grades[idx % grades.length] }}>
+                  <div className="aic">▦</div>
+                  <div><b>{a.name}</b><small>{a.app_id} · v{a.version}</small></div>
+                  <span className="tag">{a.enabled ? "已上线" : "已停用"}</span>
+                </div>
+                <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div className="role">{a.description}</div>
+                  {a.flow_ref && a.flow_bound === false && <span className="tag warn" style={{ alignSelf: "flex-start" }}>流程未绑定</span>}
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                    {(a.endpoints || []).map((e) => <span key={e.id} className="tl neutral">{e.id} · {e.title}</span>)}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--dim)" }}>
+                    数据域：{(a.data_models || []).join("、") || "未声明"}{a.flow_ref ? ` · 流程 ${a.flow_ref}` : ""}
+                    {a.crew_ref ? ` · 编排 ${a.crew_ref}` : ""}
+                  </div>
+                  <div className="tools-line">
+                    {(a.capabilities || []).map((c) => (
+                      <span key={c.name} className="tl" title={c.real ? "真实能力" : "应用自管/演示"}>{c.name}{c.platform ? (c.real ? "" : "（演示）") : ""}</span>
+                    ))}
+                  </div>
+                  <div className="ft">
+                    <span style={{ fontSize: 11.5, color: "var(--danger)" }}>
+                      强制审批：{(a.approval_required || []).join("、") || "无"}
+                    </span>
+                    <a className="btn green sm" href={`${a.entry?.url || "#"}/demo-store`} target="_blank" rel="noreferrer">打开应用 →</a>
+                  </div>
                 </div>
               </div>
-              <div className="role">{a.description} · v{a.version}</div>
-              <div style={{ fontSize: 12, color: "var(--muted)", margin: "6px 0" }}>
-                端：
-                {(a.endpoints || []).map((e) => <span key={e.id} className="tl">{e.id} · {e.title}</span>)}
-                {!(a.endpoints || []).length && <span className="tl neutral">无端</span>}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--muted)", margin: "4px 0" }}>
-                数据域：{(a.data_models || []).join("、") || "未声明"}
-                 · 绑定：{a.crew_ref ? `编排 ${a.crew_ref}` : ""}{a.flow_ref ? `流程 ${a.flow_ref}` : ""}
-              </div>
-              <div className="tools-line">
-                {(a.capabilities || []).map((c) => (
-                  <span key={c.name} className="tl" title={c.real ? "真实能力" : "应用自管/演示"}>
-                    {c.name}{c.platform ? (c.real ? "" : "（演示）") : ""}
-                  </span>
-                ))}
-              </div>
-              <div className="ft">
-                <span style={{ fontSize: 12, color: "var(--danger)" }}>
-                  强制审批：{(a.approval_required || []).join("、") || "无"}
-                </span>
-                <a className="btn green sm" href={`${a.entry?.url || "#"}/demo-store`} target="_blank" rel="noreferrer">打开应用 →</a>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : <div className="card"><div className="empty">暂无已注册应用。<br />将应用 manifest 放入后端 <code>apps/manifests/</code> 目录后刷新即可（manifest 即注册）。</div></div>}
       <div style={{ fontSize: 12, color: "var(--dim)", marginTop: 14 }}>

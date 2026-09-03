@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { get } from "../api.js";
 
 const STATUS = {
-  ready: { label: "就绪 · 可直接调用", cls: "ok" },
-  needs_key: { label: "需配置 API Key", cls: "warn" },
-  stub: { label: "占位 · 未接入", cls: "neutral" },
+  ready: { label: "就绪 · 可直接调用", cls: "ok", edge: "var(--ok)" },
+  needs_key: { label: "需配置 API Key", cls: "warn", edge: "var(--warn)" },
+  stub: { label: "占位 · 未接入", cls: "neutral", edge: "var(--border2)" },
 };
 
 export default function Tools({ onNav }) {
@@ -56,15 +56,15 @@ export default function Tools({ onNav }) {
         {filtered.map((t) => {
           const st = STATUS[t.status] || STATUS.stub;
           return (
-            <div className="ag-card" key={t.name} style={{ opacity: t.status === "stub" ? .78 : 1 }}>
+            <div className="ag-card" key={t.name} style={{ opacity: t.status === "stub" ? .78 : 1, borderTop: `2px solid ${st.edge}` }}>
               <div className="hd">
-                <div className="nm"><span className="em">🛠</span>{t.name}</div>
+                <div className="nm"><span className="em">🛠</span><span style={{ fontFamily: "var(--mono)", fontSize: 12.5, fontWeight: 600 }}>{t.name}</span></div>
                 <span className={"tag " + st.cls}>{st.label}</span>
               </div>
               <div className="role">{t.description}</div>
               <div className="tools-line">
                 {(t.args || []).map((a) => (
-                  <span key={a.name} className="tl">{a.name}{a.required ? "*" : ""} : {a.type || "str"}</span>
+                  <span key={a.name} className="tl" style={{ fontFamily: "var(--mono)" }}>{a.name}{a.required ? "*" : ""} : {a.type || "str"}</span>
                 ))}
                 {!(t.args || []).length && <span className="tl neutral">无参数</span>}
               </div>

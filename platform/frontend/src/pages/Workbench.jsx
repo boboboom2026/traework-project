@@ -4,12 +4,12 @@ import { api, get, post, streamSSE } from "../api.js";
 const EMOJI = { "资深市场调研员": "🔍", "数据分析师": "📊", "报告撰稿人": "✍️" };
 
 const CHIP_COLORS = [
-  { bg: "#e3ecff", fg: "#1d4ed8" },
-  { bg: "#e7f8ef", fg: "#15803d" },
-  { bg: "#fdf3dc", fg: "#b45309" },
-  { bg: "#fdeaea", fg: "#dc2626" },
-  { bg: "#e0f4f2", fg: "#0f766e" },
-  { bg: "#f3e8ff", fg: "#7c3aed" },
+  { bg: "linear-gradient(135deg,#2C56A8,#1E3E7E)" },
+  { bg: "linear-gradient(135deg,#2E9E6B,#1F7A52)" },
+  { bg: "linear-gradient(135deg,#F26B3A,#C8532B)" },
+  { bg: "linear-gradient(135deg,#2E7FA0,#1E546E)" },
+  { bg: "linear-gradient(135deg,#C2761B,#9A5D14)" },
+  { bg: "linear-gradient(135deg,#7A5AC9,#5B3E9E)" },
 ];
 
 function MemberChips({ members }) {
@@ -19,8 +19,8 @@ function MemberChips({ members }) {
         const c = CHIP_COLORS[i % CHIP_COLORS.length];
         return (
           <span key={m} className="member-chip" title={m}>
-            <span className="mav" style={{ background: c.bg }}>{EMOJI[m] || "🤖"}</span>
-            {m}
+            <span className="mav" style={{ background: c.bg }}>{EMOJI[m] ? "" : (m[0] || "A")}</span>
+            {EMOJI[m] ? `${EMOJI[m]} ${m}` : m}
           </span>
         );
       })}
@@ -124,8 +124,9 @@ export default function Workbench({ onNav }) {
             break;
           }
           case "tool_call": {
-            const st = ev.status === "running" ? "🔧 调用中" : ev.status === "done" ? "✓ 完成" : "⛔ 被拦截";
-            pushLog(`· ${ev.agent} 调用工具 ${ev.tool} ${st}`);
+            const st = ev.status === "running" ? "running" : ev.status === "done" ? "done" : "blocked";
+            pushLog(`· ${ev.agent} 调用工具 ${ev.tool} ${st === "running" ? "调用中" : st === "done" ? "✓ 完成" : "⛔ 被拦截"}`);
+            patchLive((l) => [...l, { type: "tool_call", agent: ev.agent, tool: ev.tool, status: st, dur: ev.duration_ms }]);
             break;
           }
           case "knowledge_retrieved": {
@@ -225,6 +226,9 @@ export default function Workbench({ onNav }) {
 
   const msgs = session?.messages || [];
 
+  const crew = crews.find((c) => c.id === session?.crew_id);
+  const tasks = crew?.tasks || [];
+
   return (
     <div className="workbench">
       <div className="wb-side">
@@ -287,7 +291,7 @@ export default function Workbench({ onNav }) {
                 if (it.type === "agent_run") {
                   return (
                     <div className="msg" key={i}>
-                      <div className="av">{it.avatar}</div>
+                      <div className="av" style={{ background: "linear-gradient(135deg,#2C56A8,#1E3E7E)" }}>{it.avatar}</div>
                       <div className="body">
                         <div className="meta">
                           <b>{it.agent}</b>
@@ -302,6 +306,19 @@ export default function Workbench({ onNav }) {
                     </div>
                   );
                 }
+                if (it.type === "tool_call") {
+                  const tag = it.status === "done" ? <span className="tag ok">✓ 完成</span>
+                    : it.status === "running" ? <span className="tag warn">调用中</span>
+                    : <span className="tag danger">被拦截</span>;
+                  return (
+                    <div className="tool-line" key={i}>
+                      <span>🛠</span><span className="tn">{it.tool}</span>
+                      <span>{it.agent}</span>
+                      {it.dur != null && <span className="du">{it.dur}ms</span>}
+                      {tag}
+                    </div>
+                  );
+                }
                 if (it.type === "approval") {
                   return <ApprovalCard key={i} it={it} onDecide={decide} />;
                 }
@@ -310,18 +327,61 @@ export default function Workbench({ onNav }) {
             </div>
 
             <div className="wb-input">
-              <textarea
-                placeholder="输入任务或话题，回车发送；填写后可点击「运行协作」让智能体团队协作执行…"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!running) handleRun(); } }}
-              />
-              <button className="btn pri" disabled={running || !input.trim()} onClick={handleRun}>
-                {running ? "协作运行中…" : "▶ 运行协作"}
-              </button>
+              <div className="attach">
+                <span className="ai-chip2" onClick={() => { setInput("拆解点餐系统下周交付计划，UI 与后端并行推进，周五前完成联调验收"); }}>💡 拆解下周交付计划</span>
+                <span className="ai-chip2" onClick={() => { setInput("生成一份本周项目进展周报，汇总三个并行任务的结果"); }}>💡 生成项目周报</span>
+                <span className="ai-chip2" onClick={() => { setInput("检索知识库中的餐饮 SOP，并给出出餐时效优化建议"); }}>🧠 知识库 · 餐饮 SOP</span>
+              </div>
+              <div className="composer-row">
+                <textarea
+                  placeholder="输入任务或话题，回车发送；填写后可让智能体团队协作执行…"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!running) handleRun(); } }}
+                />
+                <button className="btn pri" style={{ flex: "none" }} disabled={running || !input.trim()} onClick={handleRun}>
+                  {running ? "协作运行中…" : "发送 ↗"}
+                </button>
+              </div>
+              <div className="row" style={{ marginTop: 6, gap: 8 }}>
+                <span className="hint-kbd">⌘ ↵ 发送 · Shift ↵ 换行</span>
+                {running && <button className="btn ghost sm" style={{ marginLeft: "auto" }} disabled>停止</button>}
+              </div>
             </div>
           </>
         )}
+      </div>
+
+      {/* 右栏：任务链 / 参与者 / 上下文（设计稿三面板） */}
+      <div className="wb-panel">
+        <div>
+          <h6>编排 · 任务链</h6>
+          {(tasks || []).map((t, i) => (
+            <div className="titem" key={i}>
+              <span style={{ width: 18, height: 18, borderRadius: 6, background: "var(--brand)", color: "#fff", fontSize: 10, fontWeight: 700, display: "grid", placeItems: "center", flex: "none" }}>{i + 1}</span>
+              <b>{t.title || t.description || "任务"}</b>
+              <span className="tag neutral" style={{ flex: "none" }}>{t.agent_name}</span>
+            </div>
+          ))}
+          {!(tasks || []).length && <div className="ctx-box">会话未绑定任务链（可在编排配置中设置）</div>}
+        </div>
+        <div>
+          <h6>参与者</h6>
+          {(session?.members || []).map((m, i) => {
+            const c = CHIP_COLORS[i % CHIP_COLORS.length];
+            return (
+              <div className="pitem" key={m}>
+                <span style={{ width: 18, height: 18, borderRadius: 6, background: c.bg, color: "#fff", fontSize: 10, fontWeight: 700, display: "grid", placeItems: "center", flex: "none" }}>{m[0] || "A"}</span>
+                <b>{m}</b><span className="tag ok" style={{ flex: "none" }}>就绪</span>
+              </div>
+            );
+          })}
+          {!(session?.members || []).length && <div className="ctx-box">暂无参与者</div>}
+        </div>
+        <div>
+          <h6>上下文串联</h6>
+          <div className="ctx-box">任务输出将按编排顺序注入下一任务上下文（upstream）</div>
+        </div>
       </div>
 
       {creating && (

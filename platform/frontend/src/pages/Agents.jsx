@@ -55,14 +55,14 @@ export default function Agents() {
           {agents.map((a) => (
             <div className="ag-card" key={a.id}>
               <div className="hd">
-                <div className="nm"><span className="em">{a.avatar || "🤖"}</span>{a.name}
+                <div className="nm"><span className="em">{(a.name || "A")[0]}</span>{a.name}
                   <span className={"tag " + (a.status === "busy" ? "warn" : "ok")}>{a.status === "busy" ? "工作中" : "就绪"}</span>
                 </div>
               </div>
               <div className="role">{a.role} · {(providers.find((p) => p.id === a.provider_id) || {}).name || a.model || "默认模型"}</div>
               <div className="goal">🎯 {a.goal}</div>
               <div className="tools-line">
-                {(a.tools || []).map((t) => <span key={t} className="tl">{t}</span>)}
+                {(a.tools || []).map((t) => <span key={t} className="tl" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>{t}</span>)}
                 {!(a.tools || []).length && <span className="tl neutral">无工具</span>}
               </div>
               <div className="ft">

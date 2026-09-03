@@ -124,14 +124,14 @@ export default function App() {
       {/* 主区 */}
       <div className="main">
         <header className="topbar">
-          <div className="pg">
-            {cur.label}
-            <small>{PAGE_SUB[cur.id]}</small>
-          </div>
+          <div className="crumb">首页 / <b>{cur.label}</b></div>
+          <div className="search"><span>⌕</span><span>搜索智能体、任务、文档…</span><span className="kbd">⌘K</span></div>
+          <div className="sp" style={{ flex: 1 }} />
           <div className="top-user">
             <span className="ai-chip"><span className="pulse" />{health ? "AI 协作在线" : "网关离线"}</span>
-            <span>演示工作区</span>
-            <div className="av">🧑‍💼</div>
+            <span className="tenant">🏢 明远科技 · demo</span>
+            <div className="bell">🔔</div>
+            <div className="av">琳</div>
           </div>
         </header>
         <div className="content" style={{ padding: page === "workbench" ? 0 : 24 }}>
@@ -141,18 +141,3 @@ export default function App() {
     </div>
   );
 }
-
-const PAGE_SUB = {
-  dashboard: "平台运行总览与统计",
-  workbench: "群聊式多智能体对话协作（群 / 任务）",
-  agents: "定义身份、目标、模型与可用工具",
-  crews: "组装智能体与任务，定义协作流程与运行输入",
-  flows: "事件驱动工作流：顺序步骤 + 条件分支，逐步推进",
-  apps: "应用运行时：应用注册、能力、租户与统一入口",
-  tools: "浏览与启用 CrewAI 工具能力",
-  knowledge: "企业文档与知识资产（RAG）",
-  memory: "作用域记忆的浏览与重置",
-  providers: "集中管理模型接入与凭据",
-  traces: "运行记录、事件时间线与用量",
-  governance: "组织 / 角色 / 权限矩阵",
-};
