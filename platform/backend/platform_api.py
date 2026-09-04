@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import StreamingResponse
 
-from engine import CrewRunEngine
+from engine import CrewRunEngine, FLOW_HOP_LIMIT_FACTOR, flow_next_index
 import llm_client
 import retriever
 import app_runtime
@@ -38,6 +38,20 @@ def _new_id() -> str:
 
 
 router = APIRouter(prefix="/api", tags=["platform"])
+
+
+def _routed_condition(steps: List[Dict[str, Any]], idx: int, output: str) -> str:
+    """返回本次分支命中的 condition 文本（未命中分支则空串），供前端标注实际跳转原因。"""
+    branches = steps[idx].get("branches") or []
+    out = output or ""
+    for b in branches:
+        cond = (b.get("condition") or "").strip()
+        if cond and cond in out:
+            return cond
+    for b in branches:
+        if not (b.get("condition") or "").strip():
+            return "else"
+    return ""
 
 # =================== 健康 / 概览 ===================
 @router.get("/health")
@@ -596,7 +610,12 @@ def run_flow(fid: str, payload: Dict[str, Any] = Body(...)):
             try:
                 steps = f.get("steps") or []
                 idx = int(f.get("current") or 0)
+                # 防死循环：屏显单次推进允许的跳步次数（循环分支保护）
+                hop_limit = max(1, len(steps) * FLOW_HOP_LIMIT_FACTOR)
+                hops = 0
                 while idx < len(steps):
+                    if hops > hop_limit:
+                        raise RuntimeError("检测到循环分支（跳步次数超限），请检查步骤路由是否成环")
                     step = steps[idx]
                     cond = (step.get("if_contains") or "").strip()
                     prev_out = ""
@@ -607,6 +626,7 @@ def run_flow(fid: str, payload: Dict[str, Any] = Body(...)):
                         emit({"type": "flow_step", "status": "skipped", "step": step.get("name", ""),
                               "condition": cond, "message": "上一步输出未命中条件，跳过该步骤"})
                         idx += 1
+                        hops += 1
                         _store.update("flows", fid, {"steps": steps, "current": idx})
                         continue
                     step["status"] = "running"
@@ -614,7 +634,16 @@ def run_flow(fid: str, payload: Dict[str, Any] = Body(...)):
                     output = _engine.run_flow_step(f, step, input_text, emit)
                     step["output"] = output
                     step["status"] = "done"
-                    idx += 1
+                    branches = step.get("branches")
+                    next_idx = flow_next_index(steps, idx, output)
+                    # 记录实际跳转（供前端画布标注）
+                    step["routed_to"] = next_idx
+                    if branches:
+                        emit({"type": "flow_route", "from": step.get("name", ""),
+                              "from_index": idx, "to_index": next_idx,
+                              "match": _routed_condition(steps, idx, output)})
+                    idx = next_idx if next_idx is not None else len(steps)  # None → 流程结束
+                    hops += 1
                     _store.update("flows", fid, {
                         "steps": steps, "current": idx,
                         "last_output": output[:300],

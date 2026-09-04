@@ -26,6 +26,7 @@ from agent_framework import Tool
 import app_runtime
 import app_store
 import llm_client
+from engine import FLOW_HOP_LIMIT_FACTOR, flow_next_index
 from apps.hosted.menu_ordering.seed import SEED_MENU
 from platform_api import _engine, _store, _subscribed_tenant_or_404
 
@@ -397,15 +398,30 @@ def run_flow(app_id: str, tenant_id: str, payload: Dict[str, Any] = Body(...),
     idx = int(inst.get("current") or 0)
     input_text = ((payload.get("input") or "").strip() or "流程步骤")
     prev_out = (steps[idx - 1].get("output") or "") if idx > 0 else ""
+    # 防死循环：一次 runFlow 允许的跳步/分支跳转上限
+    hop_limit = max(1, len(steps) * FLOW_HOP_LIMIT_FACTOR)
+    hops = 0
 
     while idx < len(steps):
+        if hops > hop_limit:
+            raise HTTPException(400, "检测到循环分支（跳步超限），请检查流程路由是否成环")
         step = steps[idx]
         cond = (step.get("if_contains") or "").strip()
         if cond and cond not in (prev_out or ""):
+            # 跳过步骤：不执行、不走分支路由，线性/显式 next 后继续
             step["status"] = "skipped"
-            idx += 1
+            prev_out = ""
+            next_idx = flow_next_index(steps, idx, "")
+            idx = next_idx if next_idx is not None else len(steps)
+            if idx >= len(steps):
+                app_store.store.update(c["app_id"], c["tenant_id"], "flows", inst["id"],
+                                       {"steps": steps, "current": idx, "status": "已完成"})
+                return {"step": step.get("name", ""), "status": "skipped",
+                        "output": "[skipped]", "flow_id": inst["id"],
+                        "flow_status": "已完成", "current": idx}
             app_store.store.update(c["app_id"], c["tenant_id"], "flows", inst["id"],
                                    {"steps": steps, "current": idx})
+            hops += 1
             continue
 
         step["status"] = "running"
@@ -420,7 +436,11 @@ def run_flow(app_id: str, tenant_id: str, payload: Dict[str, Any] = Body(...),
             output = _engine.run_flow_step(inst, step, input_text, events.append)
         step["output"] = output
         step["status"] = "done"
-        idx += 1
+        # 分支路由：根据输出决定下一跳 index
+        next_idx = flow_next_index(steps, idx, output)
+        step["routed_to"] = next_idx
+        idx = next_idx if next_idx is not None else len(steps)
+        hops += 1
         flow_status = "已完成" if idx >= len(steps) else "运行中"
         app_store.store.update(c["app_id"], c["tenant_id"], "flows", inst["id"],
                                {"steps": steps, "current": idx, "status": flow_status,

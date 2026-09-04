@@ -24,6 +24,70 @@ from platform_store import PlatformStore
 APPROVAL_TIMEOUT = 120  # 秒
 POLL_INTERVAL = 0.5
 
+# 流程执行防死循环阈值：单次推进允许跳步次数 = 步骤数 × 该系数
+FLOW_HOP_LIMIT_FACTOR = 6
+
+
+def _resolve_step_index(steps: List[Dict[str, Any]], ref: str) -> Optional[int]:
+    """把分支目标 ref（步骤 id 或 name，或空）解析为步骤 index；无法解析返回 None。"""
+    if not ref:
+        return None
+    for i, s in enumerate(steps):
+        if s.get("id") == ref or (s.get("name") or "") == ref:
+            return i
+    return None
+
+
+def flow_next_index(steps: List[Dict[str, Any]], done_idx: int, output: str) -> Optional[int]:
+    """分支路由：执行完 steps[done_idx] 后决定下一跳 index（有向图遍历）。
+
+    语义（与官方 Flows 的 @listen/@router 对齐）：
+        1. 依次匹配步骤上带 condition 的分支，命中（子串包含）即跳转到其 to
+        2. 都不中 → 找 else 兜底分支（condition 为空 / 标为 else）
+        3. 仍无 → 用 next_if_none；再缺省 → 线性 next
+    返回 None 表示流程结束（到底 / 目标为 end / 目标为空）。
+    兼容旧数据：步骤无 branches 时退化为线性顺序推进。
+    """
+    step = steps[done_idx]
+    branches = step.get("branches")
+
+    def _resolve(ref: str) -> int:
+        """解析分支目标。'end'/空 → -1（显式结束）；可解析步骤 → index；无效引用 → 原样丢弃。"""
+        ref = (ref or "").strip()
+        if ref in ("", "end"):
+            return -1
+        ti = _resolve_step_index(steps, ref)
+        return ti if ti is not None else -2  # -1=结束, -2=无效引用(跳过该分支)
+
+    if branches:
+        out = output or ""
+        for b in branches:
+            cond = (b.get("condition") or "").strip()
+            if not cond:
+                continue  # 空条件 = else，放到第二步匹配
+            if cond in out:
+                r = _resolve(b.get("to"))
+                if r == -1:
+                    return None
+                if r >= 0:
+                    return r
+        for b in branches:
+            if (b.get("condition") or "").strip():
+                continue
+            r = _resolve(b.get("to"))
+            if r == -1:
+                return None
+            if r >= 0:
+                return r
+    nxt = (step.get("next_if_none") or "").strip()
+    if nxt:
+        r = _resolve(nxt)
+        if r == -1:
+            return None
+        if r >= 0:
+            return r
+    return done_idx + 1 if done_idx + 1 < len(steps) else None
+
 
 # ------------------- 工具目录（对齐 crewai-tools；real=True 为真实调用，False 为演示 stub） -------------------
 
