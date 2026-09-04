@@ -6,6 +6,8 @@ const target = process.env.VITE_API_PROXY || "http://localhost:8000";
 
 export default defineConfig({
   plugins: [react()],
+  // 挂载在平台后端 /platform 路径下（后端 8000 同源托管，生产构建产物）
+  base: "/platform/",
   server: {
     host: "0.0.0.0",
     port: 5173,

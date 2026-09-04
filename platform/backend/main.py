@@ -156,5 +156,10 @@ def app_static(app_id: str, tenant_id: str, path: str):
 # ---------- 应用 SDK：任意 H5 直引 /app-sdk/sdk.js ----------
 app.mount("/app-sdk", StaticFiles(directory=os.path.join(BASE_DIR, "public", "apps")), name="app-sdk")
 
+# ---------- 平台前端（React SPA 生产构建产物；同源托管，不依赖 Vite dev server） ----------
+_frontend_dist = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend", "dist"))
+if os.path.isdir(_frontend_dist):
+    app.mount("/platform", StaticFiles(directory=_frontend_dist, html=True), name="platform-ui")
+
 # ---------- 托管应用前端：用户端 / 商家端 ----------
 app.mount("/", StaticFiles(directory=hosted_app.public_dir, html=True), name="apps")
