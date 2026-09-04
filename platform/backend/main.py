@@ -161,5 +161,8 @@ _frontend_dist = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend", "dist"
 if os.path.isdir(_frontend_dist):
     app.mount("/platform", StaticFiles(directory=_frontend_dist, html=True), name="platform-ui")
 
-# ---------- 托管应用前端：用户端 / 商家端 ----------
-app.mount("/", StaticFiles(directory=hosted_app.public_dir, html=True), name="apps")
+
+# ---------- 根路径 → 平台前端（点餐端统一入口为 /app/{app}/{tenant}/...，不再占用根） ----------
+@app.get("/", include_in_schema=False)
+def root_redirect():
+    return RedirectResponse("/platform/")
