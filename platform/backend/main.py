@@ -4,9 +4,8 @@
 路由布局：
     /api/*            底座 + 应用 API（menu / orders / approvals / stats / platform/info）
     /app/{app}/{tenant}  统一入口：应用运行时静态托管 / 远端分发（阶段 1 + 租户校验 阶段 2）
-    /                 用户端（点餐系统 public/index.html）
-    /merchant.html    商家端（审批 + 订单管理）
-    /platform/manage.html  CrewAI 管理页（底座 UI）
+    /             用户端（点餐系统 public/index.html）
+    /merchant.html 商家端（审批 + 订单管理）
 """
 from __future__ import annotations
 
@@ -153,10 +152,6 @@ def app_static(app_id: str, tenant_id: str, path: str):
         return HTMLResponse(html)
     return FileResponse(full)
 
-
-# ---------- 底座 UI：管理页 ----------
-platform_public = os.path.join(BASE_DIR, "public")
-app.mount("/platform", StaticFiles(directory=platform_public, html=True), name="platform")
 
 # ---------- 应用 SDK：任意 H5 直引 /app-sdk/sdk.js ----------
 app.mount("/app-sdk", StaticFiles(directory=os.path.join(BASE_DIR, "public", "apps")), name="app-sdk")
