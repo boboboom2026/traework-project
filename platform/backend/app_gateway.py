@@ -202,15 +202,26 @@ def decide_approval(app_id: str, tenant_id: str, aid: str, payload: Dict[str, An
 
 # =================== runFlow（业务支撑主路径 · 事件步骤/动作步骤） ===================
 # 点餐业务流（代码侧注册的内置模板；平台「流程编排」可创建同名流程覆盖）
+# 分支场景：下单后做过敏检测 → 备注含过敏原走「特殊备餐」，否则走「常规出餐」，最终汇合到出餐通知
 BUILTIN_MENU_ORDER_FLOW: Dict[str, Any] = {
     "id": "builtin-menu-order-flow",
     "name": "点餐业务流",
-    "description": "智能推荐 →（顾客确认）→ 下单（审批）→ 出餐通知 · 由应用运行时 Flows 承载",
+    "description": "智能推荐 → 下单（审批）→ 过敏检测（分支：特殊备餐/常规出餐）→ 出餐通知 · 由应用运行时 Flows 承载",
     "builtin": True,
     "steps": [
-        {"name": "智能推荐", "action": "recommend"},
-        {"name": "顾客确认下单", "action": "place_order", "approval_tool": "order_process"},
-        {"name": "出餐通知", "action": "notify"},
+        {"id": "s-recommend", "name": "智能推荐", "action": "recommend"},
+        {"id": "s-place", "name": "顾客确认下单", "action": "place_order", "approval_tool": "order_process"},
+        {
+            "id": "s-detect", "name": "过敏检测", "action": "detect_allergy",
+            # 分支路由：输出含「转特殊备餐」→ 特殊备餐；否则 else → 常规出餐
+            "branches": [
+                {"condition": "转特殊备餐", "to": "特殊备餐"},
+                {"condition": "", "to": "常规出餐"},
+            ],
+        },
+        {"id": "s-special", "name": "特殊备餐", "action": "special_prep", "next_if_none": "出餐通知"},
+        {"id": "s-normal", "name": "常规出餐", "action": "normal_prep"},
+        {"id": "s-notify", "name": "出餐通知", "action": "notify"},
     ],
 }
 
@@ -364,11 +375,61 @@ def _action_notify(c: Dict[str, Any], step: Dict[str, Any], input_text: str) -> 
             f"合计 ¥{o.get('total', 0)}（桌 {o.get('seat_count', 1)}），请稍候，出餐后将为您上桌。")
 
 
+# ---- 过敏分支动作（演示分支路由：过敏检测 → 特殊备餐 / 常规出餐，汇合到出餐通知） ----
+# 常见过敏原关键词（命中任一即判定为过敏备注）
+ALLERGEN_KEYWORDS = ("过敏", "忌口", "花生", "坚果", "海鲜", "虾", "蟹", "蛋",
+                     "乳", "麸质", "大豆", "小麦", "芒果")
+
+
+def _flow_order_note(c: Dict[str, Any]) -> str:
+    """取本次点餐会话的备注：优先下单步骤输入的 JSON.note，回退最近订单 note。"""
+    rows = app_store.store.list(c["app_id"], c["tenant_id"], "flows")
+    inst = next((r for r in rows if r.get("flow_id") == BUILTIN_MENU_ORDER_FLOW["id"]), None)
+    for s in (inst or {}).get("steps") or []:
+        if s.get("action") == "place_order" and s.get("input"):
+            try:
+                d = json.loads(s["input"])
+                note = (d.get("note") or "").strip()
+                if note:
+                    return note
+            except Exception:  # noqa: BLE001
+                return (s["input"] or "").strip()
+    orders = sorted(app_store.store.list(c["app_id"], c["tenant_id"], "orders"),
+                    key=lambda r: r.get("created_at", ""), reverse=True)
+    return (orders[0].get("note") or "").strip() if orders else ""
+
+
+def _action_detect_allergy(c: Dict[str, Any], step: Dict[str, Any], input_text: str) -> str:
+    """过敏检测：解析下单备注，命中过敏原 → 转特殊备餐（分支条件）；否则常规出餐。"""
+    note = _flow_order_note(c)
+    if not note:
+        return "【过敏检测】未收到下单备注，判定无过敏风险 → 常规出餐"
+    hit = [k for k in ALLERGEN_KEYWORDS if k in note]
+    if hit:
+        return (f"【过敏检测】下单备注含过敏原：{', '.join(hit)}（原文：{note[:60]}）"
+                " → 已标记过敏原标签，转特殊备餐")
+    return f"【过敏检测】下单备注无过敏原（{note[:40]}）→ 常规出餐"
+
+
+def _action_special_prep(c: Dict[str, Any], step: Dict[str, Any], input_text: str) -> str:
+    """特殊备餐分支：双人复核、分区制作、过敏原标签，从源头规避交叉污染。"""
+    return ("〔特殊备餐〕后厨已启动过敏预案：① 双人复核用料清单 ② 独立操作区与专用厨具"
+            "（避免交叉污染）③ 餐品加贴过敏原警示标签 ④ 出餐前由主厨复核确认")
+
+
+def _action_normal_prep(c: Dict[str, Any], step: Dict[str, Any], input_text: str) -> str:
+    """常规出餐分支：标准备餐流程。"""
+    return "〔常规出餐〕后厨已按标准流程开始制作，出餐后即上桌。"
+
+
 GATEWAY_ACTIONS: Dict[str, Callable[[Dict[str, Any], Dict[str, Any], str], str]] = {
     "record": _action_record,
     "request_approval": _action_request_approval,
     "recommend": _action_recommend,
     "place_order": _action_place_order,
+    "detect_allergy": _action_detect_allergy,
+    "special_prep": _action_special_prep,
+    "normal_prep": _action_normal_prep,
     "notify": _action_notify,
 }
 
@@ -425,6 +486,7 @@ def run_flow(app_id: str, tenant_id: str, payload: Dict[str, Any] = Body(...),
             continue
 
         step["status"] = "running"
+        step["input"] = input_text  # 记录本轮输入（供后续步骤读取，如过敏检测解析下单备注）
         app_store.store.update(c["app_id"], c["tenant_id"], "flows", inst["id"],
                                {"steps": steps, "current": idx, "status": "运行中"})
         action = str(step.get("action") or "").strip()

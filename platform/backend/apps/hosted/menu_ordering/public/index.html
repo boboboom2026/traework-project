@@ -139,17 +139,26 @@ function recommend() {
   }).catch(function (e) { btn.disabled = false; toast(e.message); });
 }
 
-// ---------- 出餐通知（runFlow 步3，流程进行到下单步后可用） ----------
+// ---------- 出餐通知（runFlow 后续流程：过敏检测 → 分支备餐 → 出餐通知，一键推进至完成） ----------
 function notifyMe() {
   AppSDK.flowStatus().then(function (s) {
-    if (!s || s.status === "已完成" || (s.current || 0) < 2) {
+    if (!s || s.status === "已完成") {
       toast("暂无进行中的订单可通知（请先下单）");
       return;
     }
-    return AppSDK.runFlow("").then(function (res) {
-      var out = $("aiOut"); out.style.display = "block"; out.textContent = res.output;
-      toast("已生成出餐通知");
-    });
+    if ((s.current || 0) < 2) {
+      toast("请先下单，再进行出餐");
+      return;
+    }
+    var out = $("aiOut"); out.style.display = "block"; out.textContent = "";
+    function stepFlow() {
+      return AppSDK.runFlow("").then(function (res) {
+        out.textContent = out.textContent ? out.textContent + "\n\n" + res.output : res.output;
+        if (res.flow_status !== "已完成") return stepFlow();
+        toast("流程已完成（过敏分支 + 出餐通知）");
+      });
+    }
+    return stepFlow();
   }).catch(function (e) { toast(e.message); });
 }
 
