@@ -10,11 +10,12 @@
 """
 from __future__ import annotations
 
+import json
 import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from apps.hosted.menu_ordering.app import HostedApp
@@ -139,6 +140,17 @@ def app_static(app_id: str, tenant_id: str, path: str):
     full = os.path.normpath(os.path.join(root, *rel.split("/")))
     if not full.startswith(root) or not os.path.isfile(full):
         raise HTTPException(status_code=404, detail="资源不存在")
+    # HTML 页面注入应用上下文：供 AppSDK 在任意挂载路径/预览环境解析 app_id/tenant_id
+    if rel.lower().endswith(".html"):
+        html = open(full, encoding="utf-8").read()
+        if "window.APP_CONFIG" not in html:
+            cfg = json.dumps({"app_id": app_id, "tenant_id": tenant_id}, ensure_ascii=False)
+            inject = f'<script>window.APP_CONFIG={cfg};</script>'
+            if "</head>" in html:
+                html = html.replace("</head>", inject + "</head>", 1)
+            else:
+                html = inject + html
+        return HTMLResponse(html)
     return FileResponse(full)
 
 
