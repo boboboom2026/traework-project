@@ -1,0 +1,10 @@
+# 运行时数据（含 LLM API Key 等敏感配置），不入库
+platform/backend/data/
+
+# 前端构建产物与依赖
+platform/frontend/node_modules/
+platform/frontend/dist/
+
+# Python 缓存
+__pycache__/
+*.pyc

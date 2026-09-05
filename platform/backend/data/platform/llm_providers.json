@@ -1,0 +1,25 @@
+[
+  {
+    "name": "DeepSeek",
+    "provider": "openai_compatible",
+    "model": "deepseek-chat",
+    "api_key": "sk-f58e52cddd004adf9e96951f1207e419",
+    "base_url": "https://api.deepseek.com/v1",
+    "temperature": 0.3,
+    "notes": "DeepSeek 官方 API（OpenAI 兼容），模型 deepseek-chat",
+    "id": "adb19868",
+    "builtin": false
+  },
+  {
+    "name": "硅基流动 · BGE-M3",
+    "provider": "openai_compatible",
+    "model": "BAAI/bge-m3",
+    "base_url": "https://api.siliconflow.cn/v1",
+    "api_key": "",
+    "kind": "embedding",
+    "temperature": 0,
+    "notes": "SiliconFlow 嵌入模型：1024 维 / 8192 token / 100+ 语言。编辑中填入 API Key 后点「连接测试」验证，之后知识库文档将自动真实嵌入。",
+    "id": "f9039ed3",
+    "builtin": false
+  }
+]

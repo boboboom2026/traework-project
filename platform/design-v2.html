@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CrewAI 企业协作平台 · UI 优化设计稿 v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* 新版品牌产品化 Token（较 v1 更深的暖灰底 + 更紧的圆角 + 分层阴影） */
+    --bg:#F6F5F2; --bg2:#EFEDE9; --side:#F2F1ED; --panel:#FFFFFF;
+    --ring:#DCE5F6; --focus:#3A6BC4;
+    --border:#E6E3DD; --border2:#D6D2C9;
+    --text:#1A1A17; --muted:#63605A; --dim:#97927F;
+    --brand:#2C56A8; --brand-hi:#3A6BC4; --brand-deep:#1E3E7E; --brand-soft:#EAF0FB;
+    --accent:#F26B3A; --accent-soft:#FDEFE8;
+    --ok:#2E9E6B; --ok-soft:#E6F4EC; --warn:#C2761B; --warn-soft:#FBF0DF;
+    --danger:#DE4E4E; --danger-soft:#FBE9E9; --info:#2E7FA0; --info-soft:#E5F1F6;
+    --r:12px; --r-lg:18px;
+    --sh-1:0 1px 2px rgba(26,26,23,.05),0 1px 3px rgba(26,26,23,.04);
+    --sh-2:0 2px 6px -2px rgba(26,26,23,.08),0 8px 24px -12px rgba(26,26,23,.10);
+    --sh-3:0 4px 12px -4px rgba(26,26,23,.10),0 14px 40px -16px rgba(26,26,23,.16);
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+    --sans:"Manrope","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    --cubic:cubic-bezier(.32,.72,.24,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--brand-soft)}
+
+  /* ===== 顶栏 ===== */
+  .topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:16px;padding:0 28px;height:60px;
+    background:rgba(246,245,242,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+  .topbar .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px}
+  .logo-mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--brand) 0%,var(--brand-deep) 100%);display:grid;place-items:center;color:#fff;font-size:13px;box-shadow:var(--sh-1)}
+  .topbar .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag-soft{padding:3px 10px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:12px;font-weight:600}
+  .tag-soft.gray{background:var(--bg2);color:var(--muted)}
+  .topbar .sp{flex:1}
+  .topbar .meta{font-size:12px;color:var(--dim);font-family:var(--mono)}
+
+  /* ===== 页面骨架 ===== */
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 28px 80px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin:44px 0 18px}
+  .sec-head .idx{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);letter-spacing:.12em}
+  .sec-head h2{font-size:22px;font-weight:800;letter-spacing:-.02em}
+  .sec-head p{color:var(--muted);font-size:13.5px}
+  .principle{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:6px}
+  .p-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh-1)}
+  .p-card b{display:block;font-size:13.5px;margin-bottom:4px}
+  .p-card span{font-size:12.5px;color:var(--muted)}
+
+  /* ===== 色板 ===== */
+  .tokens{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .tok-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;box-shadow:var(--sh-1)}
+  .tok-card h4{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .tok-card h4 .en{font-family:var(--mono);font-size:11px;color:var(--dim);font-weight:500}
+  .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+  .sw{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .sw .chip{height:38px}
+  .sw .nm{padding:6px 8px;font-size:11px}
+  .sw .nm b{display:block;font-weight:600}
+  .sw .nm span{font-family:var(--mono);color:var(--dim);font-size:10px}
+  .typescale{display:flex;flex-direction:column;gap:10px}
+  .ts{display:flex;align-items:baseline;gap:14px;border-bottom:1px dashed var(--border);padding-bottom:8px}
+  .ts .demo{flex:1}
+  .ts .spe{font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap}
+  .e1{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .e2{font-size:19px;font-weight:700}
+  .e3{font-size:15px;font-weight:600}
+  .e4{font-size:13.5px}
+  .e5{font-size:12px;color:var(--muted)}
+  .mono-chip{font-family:var(--mono);font-size:11.5px;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:2px 7px;color:var(--muted)}
+
+  /* ===== 屏幕设计稿框架 ===== */
+  .screen{margin-top:34px;scroll-margin-top:80px}
+  .screen-cap{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+  .screen-cap .sno{font-family:var(--mono);color:var(--accent);font-size:12px;font-weight:600}
+  .screen-cap h3{font-size:17px;font-weight:800}
+  .screen-cap span{font-size:12.5px;color:var(--dim)}
+  .frame{background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-lg);box-shadow:var(--sh-2);overflow:hidden}
+  .frame-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#FBFAF8;border-bottom:1px solid var(--border)}
+  .dots{display:flex;gap:5px}
+  .dots i{width:9px;height:9px;border-radius:50%;display:block}
+  .dots i:nth-child(1){background:#F2B0A0}.dots i:nth-child(2){background:#EDC989}.dots i:nth-child(3){background:#A9CEA4}
+  .frame-url{flex:1;max-width:320px;background:var(--bg2);border-radius:6px;font-family:var(--mono);font-size:10.5px;color:var(--dim);padding:2px 10px;text-align:center;overflow:hidden;white-space:nowrap}
+  .frame-meta{font-size:10.5px;color:var(--dim);font-family:var(--mono)}
+  .canvas{position:relative;background:var(--bg);padding:18px}
+  .notes{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+  .note{display:flex;gap:10px;background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:9px 12px;font-size:12.5px;color:var(--muted);box-shadow:var(--sh-1)}
+  .note b{color:var(--text);font-weight:600}
+  .note .t{font-family:var(--mono);font-size:11px;color:var(--accent);white-space:nowrap;padding-top:1px}
+
+  /* ===== 通用 UI 元件（设计稿内的真实样式） ===== */
+  .app{display:flex;height:560px;border-radius:12px;overflow:hidden;background:var(--panel);border:1px solid var(--border)}
+  /* 左导轨 */
+  .rail{width:56px;background:var(--side);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px}
+  .rail .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand-deep));display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;margin-bottom:10px}
+  .ri{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:var(--dim);position:relative;font-size:15px}
+  .ri:hover{background:var(--ring);color:var(--brand)}
+  .ri.active{background:#fff;color:var(--brand);box-shadow:var(--sh-1)}
+  .ri.active::before{content:"";position:absolute;left:-9px;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--accent)}
+  /* 侧栏 */
+  .side{width:196px;background:var(--side);border-right:1px solid var(--border);padding:16px 10px;display:flex;flex-direction:column;gap:2px}
+  .sg{font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--dim);padding:10px 10px 4px}
+  .si{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:9px;font-size:12.5px;color:var(--muted);cursor:default}
+  .si.active{background:#fff;color:var(--brand);font-weight:600;box-shadow:var(--sh-1)}
+  .si .dot{width:5px;height:5px;border-radius:50%;background:var(--ok);margin-left:auto}
+  .side .sp{flex:1}
+  .side .si.user{color:var(--text)}
+  .side .si.user .av{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,var(--brand),var(--accent));color:#fff;font-size:10px;display:grid;place-items:center;font-weight:700}
+  /* 主区 */
+  .main{flex:1;display:flex;flex-direction:column;background:var(--bg);min-width:0}
+  .top{display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--border)}
+  .crumb{font-size:12.5px;color:var(--dim)}
+  .crumb b{color:var(--text)}
+  .search{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:6px 12px;width:240px;color:var(--dim);font-size:12px}
+  .search .kbd{margin-left:auto;font-family:var(--mono);font-size:10px;background:#fff;border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--dim)}
+  .top .sp{flex:1}
+  .pill{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:11.5px;color:var(--muted)}
+  .bell{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--panel);border:1px solid var(--border);color:var(--muted);position:relative}
+  .bell::after{content:"";position:absolute;top:6px;right:7px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  .av2{width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--accent));color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+  /* 内容 */
+  .content{flex:1;overflow:hidden;padding:16px 18px;display:flex;flex-direction:column;gap:14px}
+  .ph{display:flex;align-items:center;gap:10px}
+  .ph h4{font-size:14.5px;font-weight:800}
+  .ph .cnt{margin-left:auto;display:flex;gap:6px}
+  .btn{border:1px solid var(--border);background:var(--panel);border-radius:9px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--muted)}
+  .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.accent{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.ghost{background:transparent}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:13px 14px;box-shadow:var(--sh-1);position:relative;overflow:hidden}
+  .kpi .lb{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .kpi .vl{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--brand-deep);margin-top:2px}
+  .kpi .delta{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;color:var(--ok);background:var(--ok-soft);border-radius:999px;padding:1px 7px;margin-left:6px}
+  .kpi svg.spark{position:absolute;right:8px;bottom:8px;opacity:.85}
+  .cols{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh-1);padding:14px}
+  .card h5{font-size:12.5px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .card h5 .more{margin-left:auto;font-size:11px;color:var(--brand);font-weight:600}
+  .run{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border)}
+  .run:last-child{border-bottom:none}
+  .st{width:8px;height:8px;border-radius:50%;flex:none}
+  .st.ok{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+  .st.run{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);animation:pulse 2s infinite}
+  .st.err{background:var(--danger)}
+  .st.wait{background:var(--warn)}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 3px var(--accent-soft)}50%{box-shadow:0 0 0 6px rgba(242,107,58,.18)}}
+  .run .nm{flex:1;min-width:0}
+  .run .nm b{display:block;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .run .nm span{font-size:11px;color:var(--dim)}
+  .du{font-family:var(--mono);font-size:10.5px;color:var(--muted);background:var(--bg2);border-radius:6px;padding:2px 7px;white-space:nowrap}
+  .tag{border-radius:6px;padding:1px 8px;font-size:10.5px;font-weight:600}
+  .tag.ok{background:var(--ok-soft);color:var(--ok)} .tag.warn{background:var(--warn-soft);color:var(--warn)}
+  .tag.danger{background:var(--danger-soft);color:var(--danger)} .tag.brand{background:var(--brand-soft);color:var(--brand)}
+  .tag.dim{background:var(--bg2);color:var(--dim)} .tag.accent{background:var(--accent-soft);color:var(--accent)}
+  .health{display:flex;align-items:center;gap:10px;padding:7px 0}
+  .health .hn{width:92px;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar{flex:1;height:6px;border-radius:4px;background:var(--bg2);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--brand),var(--brand-hi))}
+  .health .pct{font-family:var(--mono);font-size:10.5px;color:var(--dim);width:34px;text-align:right}
+  .crew-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .crew{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:12px 13px;box-shadow:var(--sh-1)}
+  .crew .t{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+  .crew .d{font-size:11px;color:var(--muted);margin:5px 0 9px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .crew .ft{display:flex;align-items:center;gap:6px}
+
+  /* Workbench */
+  .wb{display:flex;height:600px;border-radius:12px;overflow:hidden;background:var(--panel);border:1px solid var(--border)}
+  .sess{width:208px;background:var(--side);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:12px 10px;gap:3px}
+  .sess .nw{display:flex;align-items:center;gap:8px;color:var(--brand);font-size:12px;font-weight:700;padding:7px 10px;border-radius:9px;background:var(--brand-soft);margin-bottom:6px}
+  .sitem{padding:8px 10px;border-radius:10px;cursor:default}
+  .sitem.active{background:#fff;box-shadow:var(--sh-1)}
+  .sitem b{display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sitem span{font-size:10.5px;color:var(--dim);display:flex;align-items:center;gap:5px;margin-top:2px}
+  .run-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+  .wb-main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+  .wb-head{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--panel);border-bottom:1px solid var(--border)}
+  .wb-head .sts{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .stack{display:flex;gap:-4px}
+  .stack .av{width:22px;height:22px;border-radius:7px;border:2px solid #fff;margin-left:-5px;font-size:9px;color:#fff;display:grid;place-items:center;font-weight:700}
+  .msgs{flex:1;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+  .msg{display:flex;gap:9px;max-width:86%}
+  .msg.me{flex-direction:row-reverse;margin-left:auto}
+  .msg .av{width:24px;height:24px;border-radius:8px;flex:none;font-size:10px;color:#fff;display:grid;place-items:center;font-weight:700}
+  .msg .bub{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:8px 12px;font-size:12px;box-shadow:var(--sh-1)}
+  .msg.me .bub{background:var(--brand);border-color:var(--brand);color:#fff}
+  .msg .bub .who{font-size:10.5px;font-weight:700;color:var(--brand);margin-bottom:2px;display:block}
+  .msg.me .bub .who{color:#fff;opacity:.85}
+  .msg .bub ul{margin:4px 0 0 14px}
+  .toolline{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:11.5px;box-shadow:var(--sh-1);width:fit-content}
+  .toolline .ic{font-size:12px}
+  .toolline .tn{font-family:var(--mono);font-size:11px;font-weight:600}
+  .composer{margin:0 16px 14px;background:var(--panel);border:1px solid var(--border2);border-radius:14px;box-shadow:var(--sh-2);padding:9px 12px}
+  .composer .attach{display:flex;gap:6px;margin-bottom:6px}
+  .achip{display:inline-flex;align-items:center;gap:5px;background:var(--brand-soft);color:var(--brand);font-size:10.5px;font-weight:600;border-radius:8px;padding:2px 9px}
+  .composer .in{width:100%;border:none;outline:none;background:transparent;font-size:12.5px;color:var(--text);font-family:var(--sans);resize:none;min-height:22px}
+  .composer .row{display:flex;align-items:center;gap:8px;margin-top:6px}
+  .composer .row .hint{font-size:10.5px;color:var(--dim);font-family:var(--mono)}
+  .panel-r{width:236px;background:var(--side);border-left:1px solid var(--border);padding:12px 10px;overflow:hidden;display:flex;flex-direction:column;gap:10px}
+  .pr h6{font-size:10.5px;font-weight:700;color:var(--dim);margin-bottom:7px;letter-spacing:.06em}
+  .witem{display:flex;align-items:center;gap:8px;padding:6px 5px;font-size:11.5px}
+  .witem b{flex:1;font-weight:600;font-size:11.5px}
+  .ctx{background:#fff;border:1px solid var(--border);border-radius:10px;padding:7px 9px;font-size:11px;color:var(--muted);box-shadow:var(--sh-1)}
+
+  /* 智能体 */
+  .ag-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .ag{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:13px;box-shadow:var(--sh-1);position:relative;transition:transform .2s var(--cubic),box-shadow .2s var(--cubic)}
+  .ag:hover{transform:translateY(-2px);box-shadow:var(--sh-2);border-color:var(--ring)}
+  .ag .hd{display:flex;align-items:center;gap:9px}
+  .ag .aav{width:30px;height:30px;border-radius:10px;color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
+  .ag .nm{flex:1;min-width:0}
+  .ag .nm b{display:block;font-size:13px;font-weight:700}
+  .ag .nm span{font-size:10.5px;color:var(--dim)}
+  .ag .goal{font-size:11.5px;color:var(--muted);margin:8px 0 9px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:32px}
+  .ag .tl{display:flex;gap:5px;flex-wrap:wrap}
+
+  /* 工具库 */
+  .tsearch{display:flex;align-items:center;gap:8px;background:var(--panel);border:1.5px solid var(--ring);border-radius:11px;padding:8px 13px;width:320px;color:var(--dim);font-size:12.5px;box-shadow:0 0 0 3px rgba(234,240,251,.6)}
+  .filters{display:flex;gap:6px;flex-wrap:wrap}
+  .tool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .tool{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:11px 12px;box-shadow:var(--sh-1);border-top:2px solid var(--border2)}
+  .tool.okk{border-top-color:var(--ok)} .tool.warnk{border-top-color:var(--warn)} .tool.stubk{border-top-color:var(--border2)}
+  .tool .hd{display:flex;align-items:center;gap:7px}
+  .tool .hd b{font-family:var(--mono);font-size:12px;font-weight:600}
+  .tool .hd .src{margin-left:auto;font-size:9.5px;font-weight:700;background:var(--ring);color:var(--brand);border-radius:5px;padding:1px 6px}
+  .tool .ds{font-size:11px;color:var(--muted);margin:6px 0 7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .tool .args{font-family:var(--mono);font-size:10px;color:var(--dim);background:var(--bg2);border-radius:6px;padding:3px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tool .ft{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+
+  /* Flows */
+  .flows{display:flex;height:560px;border-radius:12px;overflow:hidden;background:var(--panel);border:1px solid var(--border)}
+  .flist{width:200px;background:var(--side);border-right:1px solid var(--border);padding:12px 10px;display:flex;flex-direction:column;gap:3px}
+  .flist h6{font-size:10.5px;font-weight:700;color:var(--dim);margin:2px 0 6px;letter-spacing:.06em}
+  .fitem{padding:8px 10px;border-radius:10px}
+  .fitem.active{background:#fff;box-shadow:var(--sh-1)}
+  .fitem b{display:block;font-size:12px;font-weight:600}
+  .fitem span{font-size:10.5px;color:var(--dim)}
+  .fcanvas{flex:1;background:repeating-linear-gradient(0deg,transparent,transparent 22px,#f4f1ec 22px,#f4f1ec 23px),repeating-linear-gradient(90deg,transparent,transparent 22px,#f4f1ec 22px,#f4f1ec 23px);position:relative;overflow:hidden}
+  .node{position:absolute;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:11.5px;box-shadow:var(--sh-1);min-width:130px}
+  .node b{display:block;font-size:12px;font-weight:700}
+  .node span{font-size:10px;color:var(--dim)}
+  .node.done{border-top:2px solid var(--ok)} .node.run{border-top:2px solid var(--accent)} .node.wait{border-top:2px solid var(--border2)}
+  .node.sel{outline:2px solid var(--ring);border-color:var(--focus)}
+  .edge{position:absolute;height:2px;background:var(--border2);transform-origin:left center}
+  .fright{width:224px;background:var(--side);border-left:1px solid var(--border);padding:12px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+  .kv{display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px dashed var(--border)}
+  .kv b{color:var(--muted);font-weight:500}.kv span{font-weight:600}
+  .logs{font-family:var(--mono);font-size:10px;line-height:1.8;color:var(--muted);background:#14181f;border-radius:9px;padding:9px 11px;flex:1;overflow:hidden}
+  .logs .t{color:#6fa3e8}.logs .ok{color:#7ad0a4}.logs .w{color:#e6b56c}
+
+  /* Apps */
+  .app-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .ap{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--sh-1);transition:transform .2s var(--cubic),box-shadow .2s var(--cubic)}
+  .ap:hover{transform:translateY(-2px);box-shadow:var(--sh-2)}
+  .ap .cover{height:74px;display:flex;align-items:center;gap:10px;padding:0 16px;color:#fff;position:relative;overflow:hidden}
+  .ap .cover .icon{width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.22);backdrop-filter:blur(6px);display:grid;place-items:center;font-size:19px}
+  .ap .cover b{font-size:14px;font-weight:700}
+  .ap .cover span{display:block;font-size:10px;opacity:.82}
+  .ap .bd{padding:12px 14px}
+  .ap .bd .ds{font-size:11.5px;color:var(--muted);min-height:34px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .ap .bd .ft{display:flex;align-items:center;margin-top:10px;gap:6px}
+  .ap .bd .ft .ver{font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:auto}
+  .newap{display:grid;place-items:center;border:1.5px dashed var(--border2);border-radius:var(--r-lg);color:var(--dim);font-size:12px;min-height:150px;cursor:default}
+
+  /* 动效规格 */
+  .motion{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  .mo{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;box-shadow:var(--sh-1)}
+  .mo b{display:block;font-size:13px;margin-bottom:4px}
+  .mo span{font-size:12px;color:var(--muted);display:block}
+  .mo code{font-family:var(--mono);font-size:10.5px;background:var(--bg2);border-radius:6px;padding:1px 7px;color:var(--brand);display:inline-block;margin-top:6px}
+
+  /* 暗色预览 */
+  .dark-frame{background:#10131C;border:1px solid #262B3A;border-radius:var(--r-lg);padding:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .dark-kpi{background:#171C2B;border:1px solid #232A3D;border-radius:var(--r);padding:13px 14px}
+  .dark-kpi .lb{font-size:11px;color:#8B92A8}
+  .dark-kpi .vl{font-size:22px;font-weight:800;color:#E9ECF5;margin-top:2px;letter-spacing:-.02em}
+  .dark-kpi .delta{color:#7AD0A4;background:rgba(122,208,164,.12);border-radius:999px;padding:1px 7px;font-size:10.5px;margin-left:6px}
+  .dark-note{margin-top:12px;font-size:12px;color:#8B92A8}
+
+  .foot{margin-top:56px;padding-top:18px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;display:flex;justify-content:space-between;font-family:var(--mono)}
+  @media (max-width:900px){.kpis,.cols,.crew-grid,.ag-grid,.tool-grid,.app-grid,.dark-frame{grid-template-columns:1fr 1fr}.app,.wb,.flows{height:auto;flex-direction:column}.rail{flex-direction:row;width:100%;height:auto}.side{width:100%}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><div class="logo-mark">◆</div> CrewAI 企业协作平台 · UI 优化设计稿</div>
+  <div class="tags"><span class="tag-soft">品牌产品化精修 v2</span><span class="tag-soft gray">操作型 SaaS · 高频使用</span></div>
+  <div class="sp"></div>
+  <div class="meta">2026-09 · 设计 → 评审 → 实施</div>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ 00 方向 ============ -->
+  <div class="sec-head" style="margin-top:8px"><span class="idx">00 / 方向</span><h2>一页看懂本轮优化</h2><p>在既有「暖白 + 深蓝 + 珊瑚橙」品牌基调上精修工艺，不做风格突变</p></div>
+  <div class="principle">
+    <div class="p-card"><b>① 密度与节奏</b><span>更低信息噪音：内容 16/24 栅格，字号收敛到 5 级刻度，标题 18–22、正文 13.5、标签 12</span></div>
+    <div class="p-card"><b>② 分层 Elevation</b><span>rail / 卡片 / 浮层三级阴影（--sh-1/2/3），hover 抬升一级，状态用「色点 + 浅底徽章」而非整卡变色</span></div>
+    <div class="p-card"><b>③ 品牌聚焦</b><span>深蓝只用于主行动与激活态，珊瑚橙只做强调与「运行中」脉冲，语义色遵循双色系统</span></div>
+    <div class="p-card"><b>④ 产品化细节</b><span>⌘K 全局搜索、面包屑、租户切换、状态脉冲动效、工具调用折叠卡——向 Linear/Arc 的工艺感看齐</span></div>
+  </div>
+
+  <!-- ============ 01 Token ============ -->
+  <div class="sec-head"><span class="idx">01 / Token</span><h2>设计令牌 · 修订版</h2><p>暖灰底更深一档 (#F6F5F2) 让白卡更有“纸面感”；圆角 12→18 收紧，阴影由纯灰改为暖灰分层</p></div>
+  <div class="tokens">
+    <div class="tok-card"><h4>主色板 <span class="en">BRAND</span></h4>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#F6F5F2"></div><div class="nm"><b>bg 暖白</b><span>#F6F5F2</span></div></div>
+        <div class="sw"><div class="chip" style="background:#FFFFFF"></div><div class="nm"><b>panel 卡片</b><span>#FFFFFF</span></div></div>
+        <div class="sw"><div class="chip" style="background:#2C56A8"></div><div class="nm"><b>brand 深蓝</b><span>#2C56A8</span></div></div>
+        <div class="sw"><div class="chip" style="background:#3A6BC4"></div><div class="nm"><b>brand-hi</b><span>#3A6BC4</span></div></div>
+        <div class="sw"><div class="chip" style="background:#1E3E7E"></div><div class="nm"><b>brand-deep</b><span>#1E3E7E</span></div></div>
+        <div class="sw"><div class="chip" style="background:#EAF0FB"></div><div class="nm"><b>brand-soft</b><span>#EAF0FB</span></div></div>
+        <div class="sw"><div class="chip" style="background:#F26B3A"></div><div class="nm"><b>accent 珊瑚</b><span>#F26B3A</span></div></div>
+        <div class="sw"><div class="chip" style="background:#FDEFE8"></div><div class="nm"><b>accent-soft</b><span>#FDEFE8</span></div></div>
+        <div class="sw"><div class="chip" style="background:#2E9E6B"></div><div class="nm"><b>ok</b><span>#2E9E6B</span></div></div>
+        <div class="sw"><div class="chip" style="background:#C2761B"></div><div class="nm"><b>warn</b><span>#C2761B</span></div></div>
+        <div class="sw"><div class="chip" style="background:#DE4E4E"></div><div class="nm"><b>danger</b><span>#DE4E4E</span></div></div>
+        <div class="sw"><div class="chip" style="background:#2E7FA0"></div><div class="nm"><b>info</b><span>#2E7FA0</span></div></div>
+      </div>
+    </div>
+    <div class="tok-card"><h4>字体刻度 <span class="en">TYPO</span></h4>
+      <div class="typescale">
+        <div class="ts"><div class="demo e1">平台概览</div><span class="spe">Display · 26/800</span></div>
+        <div class="ts"><div class="demo e2">协作工作台</div><span class="spe">H2 · 19/700</span></div>
+        <div class="ts"><div class="demo e3">智能体配置</div><span class="spe">H4 · 15/600</span></div>
+        <div class="ts"><div class="demo e4">正文内容 13.5，信息密度优先，行高 1.6</div><span class="spe">Body · 13.5</span></div>
+        <div class="ts"><div class="demo e5">标签 / 时间 / 辅助文字 12 · LETTER-SPACING 0.14em</div><span class="spe">Cap · 12</span></div>
+        <div class="ts"><div class="demo"><span class="mono-chip">file_read</span> <span class="mono-chip">3a4b7c</span> <span class="mono-chip">220ms</span></div><span class="spe">Mono · JetBrains</span></div>
+      </div>
+      <div style="margin-top:12px;font-size:11.5px;color:var(--muted)">英数 Manrope 700/800，中文 PingFang SC，代码/参数/耗时一律 JetBrains Mono — 一眼可区分的“系统语言”</div>
+    </div>
+    <div class="tok-card"><h4>形态与阴影 <span class="en">SHAPE</span></h4>
+      <div class="typescale">
+        <div style="display:flex;gap:10px;align-items:center">
+          <div style="width:64px;height:64px;border-radius:12px;background:var(--panel);border:1px solid var(--border);box-shadow:var(--sh-1);display:grid;place-items:center;font-size:11px;color:var(--dim)">12</div>
+          <div style="width:64px;height:64px;border-radius:18px;background:var(--panel);border:1px solid var(--border2);box-shadow:var(--sh-2);display:grid;place-items:center;font-size:11px;color:var(--dim)">18</div>
+          <div style="width:64px;height:64px;border-radius:10px;background:var(--panel);border:1px solid var(--ring);box-shadow:var(--sh-3);display:grid;place-items:center;font-size:11px;color:var(--brand)">浮层</div>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted)">内部小件 / 输入框 <b>10–12</b>；卡片 <b>12</b>；弹层/抽屉 <b>18</b>。阴影统一暖灰 <code style="font-family:var(--mono);font-size:10px">rgba(26,26,23,…)</code>，避免冷灰发脏</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 02 平台概览 ============ -->
+  <div class="screen" id="s-dash">
+    <div class="screen-cap"><span class="sno">SCREEN 01</span><h3>平台概览 Dashboard</h3><span>首屏信息架构：KPI 带趋势微线 + 运行时间线 + 智能体健康 + 活跃编排</span></div>
+    <div class="frame">
+      <div class="frame-bar"><div class="dots"><i></i><i></i><i></i></div><div class="frame-url">app.crewai-workbench.local/dashboard</div><div class="frame-meta">1440 × 900 · 预览</div></div>
+      <div class="canvas">
+        <div class="app">
+          <div class="rail">
+            <div class="logo">◆</div>
+            <div class="ri">▦</div><div class="ri active">✧</div><div class="ri">◉</div><div class="ri">≣</div><div class="ri">▶</div><div class="ri">⧉</div>
+          </div>
+          <div class="side">
+            <div class="sg">总 览</div>
+            <div class="si active" style="color:var(--brand);font-weight:600">平台概览</div>
+            <div class="sg">协作核心</div>
+            <div class="si">协作工作台</div>
+            <div class="si">智能体配置</div>
+            <div class="si">协作编排配置</div>
+            <div class="si">流程编排 Flows</div>
+            <div class="si">应用管理</div>
+            <div class="sg">资产与能力</div>
+            <div class="si">工具库 <span class="dot"></span></div>
+            <div class="si">知识库</div>
+            <div class="si">记忆管理</div>
+            <div class="sp"></div>
+            <div class="si user"><div class="av">林</div> 林晓</div>
+          </div>
+          <div class="main">
+            <div class="top">
+              <div class="crumb">首页 / <b>平台概览</b></div>
+              <div class="search">🔍 搜索智能体、任务、文档…<span class="kbd">⌘K</span></div>
+              <div class="sp"></div>
+              <div class="pill">🏢 明远科技 · demo</div>
+              <div class="bell"></div>
+              <div class="av2">琳</div>
+            </div>
+            <div class="content">
+              <div class="ph"><h4>平台概览</h4><div class="cnt"><span class="tag ok">● 运行正常</span></div></div>
+              <div class="kpis">
+                <div class="kpi"><div class="lb">智能体总数</div><div class="vl">12 <span class="delta">▲ 2</span></div>
+                  <svg class="spark" width="64" height="26" viewBox="0 0 64 26"><polyline points="0,20 10,16 20,18 30,11 40,13 50,7 64,9" fill="none" stroke="#3A6BC4" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+                <div class="kpi"><div class="lb">协作编排</div><div class="vl">8 <span class="delta">▲ 1</span></div>
+                  <svg class="spark" width="64" height="26" viewBox="0 0 64 26"><polyline points="0,18 10,20 20,14 30,15 40,10 50,11 64,6" fill="none" stroke="#3A6BC4" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+                <div class="kpi"><div class="lb">今日运行</div><div class="vl">46 <span class="delta">▲ 12%</span></div>
+                  <svg class="spark" width="64" height="26" viewBox="0 0 64 26"><polyline points="0,22 10,18 20,19 30,13 40,12 50,8 64,5" fill="none" stroke="#F26B3A" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+                <div class="kpi"><div class="lb">待审批</div><div class="vl" style="color:var(--warn)">3</div>
+                  <svg class="spark" width="64" height="26" viewBox="0 0 64 26"><polyline points="0,8 10,10 20,9 30,14 40,13 50,19 64,18" fill="none" stroke="#C2761B" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+              </div>
+              <div class="cols">
+                <div class="card" style="grid-column:1">
+                  <h5>运行观测 · 最近 6 条 <span class="more">查看全部 →</span></h5>
+                  <div class="run"><span class="st run"></span><div class="nm"><b>点餐系统 · 下单全流程（层次式）</b><span>规划器 · 已委派 3 个子任务</span></div><span class="du">2m 14s</span><span class="tag accent">运行中</span></div>
+                  <div class="run"><span class="st ok"></span><div class="nm"><b>市场周报生成 · 3 智能体并行</b><span>研究员 / 分析师 / 编辑</span></div><span class="du">48s</span><span class="tag ok">完成</span></div>
+                  <div class="run"><span class="st ok"></span><div class="nm"><b>新员工入职材料检索</b><span>知识库 RAG · 命中 5 段</span></div><span class="du">12s</span><span class="tag ok">完成</span></div>
+                  <div class="run"><span class="st wait"></span><div class="nm"><b>费用报销单审批</b><span>发送邮件工具 · 待人工确认</span></div><span class="du">—</span><span class="tag warn">待审批</span></div>
+                  <div class="run"><span class="st err"></span><div class="nm"><b>竞品价格监控</b><span>serper_search · 超时重试 2 次</span></div><span class="du">1m 3s</span><span class="tag danger">失败</span></div>
+                  <div class="run"><span class="st ok"></span><div class="nm"><b>周报 @3 群组 · 定时触发</b><span>Flow: weekly_report</span></div><span class="du">31s</span><span class="tag ok">完成</span></div>
+                </div>
+                <div class="card">
+                  <h5>智能体健康</h5>
+                  <div class="health"><div class="hn">规划器</div><div class="bar"><i style="width:86%"></i></div><span class="pct">86%</span></div>
+                  <div class="health"><div class="hn">研究员</div><div class="bar"><i style="width:64%"></i></div><span class="pct">64%</span></div>
+                  <div class="health"><div class="hn">开发者</div><div class="bar"><i style="width:41%"></i></div><span class="pct">41%</span></div>
+                  <div class="health"><div class="hn">质检员</div><div class="bar"><i style="width:72%"></i></div><span class="pct">72%</span></div>
+                  <h5 style="margin-top:14px">待办审批</h5>
+                  <div class="run"><span class="st wait"></span><div class="nm"><b>发送《Q3 规划》邮件</b><span>send_email · 林晓 · 10:24</span></div></div>
+                  <div style="display:flex;gap:6px;margin-top:10px">
+                    <div class="btn" style="flex:1;text-align:center">拒绝</div>
+                    <div class="btn pri" style="flex:1;text-align:center">批准</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note"><span class="t">01</span><span><b>KPI 卡升级：</b>数字区深蓝大号 + 右上角趋势 sparkline + 涨幅胶囊，替代单调数字卡，一眼看到趋势而非只看到现值</span></div>
+      <div class="note"><span class="t">02</span><span><b>运行时间线状态化：</b>状态点（运行脉冲/完成/待审批/失败）→ agent 名 → 工具过程摘要 → 耗时 Mono 徽章，四段式信息骨架，扫读效率最高</span></div>
+      <div class="note"><span class="t">03</span><span><b>全局指挥层：</b>顶部 ⌘K 全局搜索、面包屑、租户切换、带红点通知；左侧导轨激活态用珊瑚橙竖条 + 白色胶囊，替代整块高亮</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 03 协作工作台 ============ -->
+  <div class="screen" id="s-wb">
+    <div class="screen-cap"><span class="sno">SCREEN 02</span><h3>协作工作台 Workbench</h3><span>多智能体对话协作：会话 + 消息流 + 右栏任务/上下文，工具调用折叠为信息卡</span></div>
+    <div class="frame">
+      <div class="frame-bar"><div class="dots"><i></i><i></i><i></i></div><div class="frame-url">app.crewai-workbench.local/workbench</div><div class="frame-meta">1440 × 900 · 预览</div></div>
+      <div class="canvas" style="padding:18px"><div class="wb">
+        <div class="sess">
+          <div class="nw">＋ 新建会话</div>
+          <div class="sitem active"><b>点餐系统 · 交付计划</b><span><span class="run-dot"></span> 规划器运行中</span></div>
+          <div class="sitem"><b>市场周报 @3 群组</b><span>3 分钟前 · 4 条新消息</span></div>
+          <div class="sitem"><b>竞品价格分析</b><span>1 小时前</span></div>
+          <div class="sitem"><b>新员工入职材料</b><span>昨天 14:32</span></div>
+          <div class="sitem"><b>代码评审 · 点餐 API</b><span>昨天 09:10</span></div>
+        </div>
+        <div class="wb-main">
+          <div class="wb-head">
+            <b style="font-size:13px">点餐系统 · 交付计划</b>
+            <div class="stack">
+              <div class="av" style="background:linear-gradient(135deg,#2C56A8,#1E3E7E)">规</div>
+              <div class="av" style="background:linear-gradient(135deg,#2E7FA0,#1E546e)">研</div>
+              <div class="av" style="background:linear-gradient(135deg,#F26B3A,#C8532B)">开</div>
+              <div class="av" style="background:linear-gradient(135deg,#2E9E6B,#1F7A52)">测</div>
+            </div>
+            <div class="sts"><span class="tag accent">● 运行中 · 3/4 子任务</span></div>
+          </div>
+          <div class="msgs">
+            <div class="msg me"><div class="av" style="background:linear-gradient(135deg,var(--brand),var(--accent))">林</div>
+              <div class="bub">帮我把点餐系统的下周交付计划拆解出来：UI 与后端并行推进，周五前完成联调与验收</div></div>
+            <div class="msg"><div class="av" style="background:linear-gradient(135deg,#2C56A8,#1E3E7E)">规</div>
+              <div class="bub"><span class="who">规划器 Planner</span>已拆解为 6 个子任务，其中 3 个可并行：
+                <ul><li>T1 点餐流程 Flows 编排（含下单/支付/出餐状态机）</li><li>T2 收银台 UI 组件库 · 与 T1 并行</li><li>T3 后厨 Sink 接入 · 与 T1 并行</li></ul></div></div>
+            <div class="toolline"><span class="ic">🛠</span><span class="tn">directory_read</span><span>· 22ms</span><span class="tag ok">ok</span></div>
+            <div class="msg"><div class="av" style="background:linear-gradient(135deg,#2E7FA0,#1E546e)">研</div>
+              <div class="bub"><span class="who">开发者 Developer</span>收银台 UI 已按设计令牌落地组件 7/12：菜单网格、购物车抽屉、订单确认、支付状态…
+                <div style="font-family:var(--mono);font-size:11px;background:var(--bg2);border-radius:8px;padding:6px 10px;margin-top:6px">const pay = new PayFlow({ tunnel: "wechat", debounce: 300 })</div></div></div>
+            <div class="toolline"><span class="ic">🛠</span><span class="tn">tavily_search</span><span>· 1.2s</span><span class="tag accent">重试</span><span class="tag ok">ok</span></div>
+          </div>
+          <div class="composer">
+            <div class="attach"><span class="achip">🛠 web_search</span><span class="achip">📎 需求文档.pdf</span><span class="achip">🧠 知识库:餐饮SOP</span></div>
+            <div class="in" style="color:var(--muted)">继续推进 T3，把后厨 Sink 与 Flows 的出餐节点接起来…</div>
+            <div class="row">
+              <span class="hint">⌘ ↵ 发送 · Shift ↵ 换行</span><span class="sp" style="flex:1"></span>
+              <div class="btn">停止</div><div class="btn pri">发送 ↗</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-r">
+          <div class="pr"><h6>运行中任务</h6>
+            <div class="witem"><span class="run-dot"></span><b>T3 后厨 Sink 接入</b><span class="tag brand">开发中</span></div>
+            <div class="witem"><span class="run-dot"></span><b>T1 点餐流程编排</b><span class="tag brand">开发中</span></div>
+            <div class="witem"><span></span><b>T4 联调验证</b><span class="tag dim">排队</span></div>
+          </div>
+          <div class="pr"><h6>上下文串联</h6>
+            <div class="ctx">↑ T1 输出：<b>flows/menu-ordering.json</b><br/>已注入当前任务上下文</div>
+            <div class="ctx" style="margin-top:6px">↑ 知识库命中：<b>餐饮 SOP · 出餐时效 3 段</b></div>
+          </div>
+          <div class="pr"><h6>参与者</h6>
+            <div class="witem"><div class="av" style="width:18px;height:18px;border-radius:6px;background:#2C56A8;color:#fff;font-size:8px;display:grid;place-items:center">规</div><b>规划器</b><span class="tag ok">就绪</span></div>
+            <div class="witem"><div class="av" style="width:18px;height:18px;border-radius:6px;background:#2E9E6B;color:#fff;font-size:8px;display:grid;place-items:center">研</div><b>研究员</b><span class="tag dim">空闲</span></div>
+            <div class="witem"><div class="av" style="width:18px;height:18px;border-radius:6px;background:#F26B3A;color:#fff;font-size:8px;display:grid;place-items:center">开</div><b>开发者</b><span class="tag accent">运行中</span></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+    <div class="notes">
+      <div class="note"><span class="t">01</span><span><b>工具调用转为折叠信息卡：</b>工具名 Mono + 耗时 + 状态徽章，落回消息流而不打断对话节奏（可点击展开入参/输出）</span></div>
+      <div class="note"><span class="t">02</span><span><b>输入区装配化：</b>所绑工具、附件、知识库以可移除 chip 前置展示；右侧「停止 / 发送」双态按钮，运行中可随时中断</span></div>
+      <div class="note"><span class="t">03</span><span><b>右栏三块面板：</b>运行中任务（脉冲点+状态）、上下文串联（上游任务输出/知识库命中可视化）、参与者健康，替代原来的平铺日志</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 04 智能体配置 ============ -->
+  <div class="screen" id="s-agents">
+    <div class="screen-cap"><span class="sno">SCREEN 03</span><h3>智能体配置 Agents</h3><span>卡片网格 + hover 抬升 + 配置抽屉，工具绑定以多选框组呈现</span></div>
+    <div class="frame">
+      <div class="frame-bar"><div class="dots"><i></i><i></i><i></i></div><div class="frame-url">app.crewai-workbench.local/agents</div><div class="frame-meta">1440 × 900 · 预览</div></div>
+      <div class="canvas">
+        <div class="app">
+          <div class="rail"><div class="logo">◆</div><div class="ri">▦</div><div class="ri">✧</div><div class="ri active">◉</div><div class="ri">≣</div><div class="ri">▶</div><div class="ri">⧉</div></div>
+          <div class="side">
+            <div class="sg">总 览</div><div class="si">平台概览</div>
+            <div class="sg">协作核心</div><div class="si">协作工作台</div><div class="si active" style="color:var(--brand);font-weight:600">智能体配置</div><div class="si">协作编排配置</div><div class="si">流程编排 Flows</div><div class="si">应用管理</div>
+            <div class="sg">资产与能力</div><div class="si">工具库</div><div class="si">知识库</div><div class="si">记忆管理</div>
+            <div class="sp"></div><div class="si user"><div class="av">林</div> 林晓</div>
+          </div>
+          <div class="main">
+            <div class="top"><div class="crumb">首页 / <b>智能体配置</b></div><div class="search">🔍 搜索智能体…<span class="kbd">⌘K</span></div><div class="sp"></div><div class="pill">🏢 明远科技 · demo</div><div class="bell"></div><div class="av2">琳</div></div>
+            <div class="content">
+              <div class="ph"><h4>智能体配置</h4><span class="tag brand">12 个</span><div class="cnt"><div class="btn ghost">导入</div><div class="btn pri">＋ 新建智能体</div></div></div>
+              <div class="ag-grid">
+                <div class="ag"><div class="hd"><div class="aav" style="background:linear-gradient(135deg,#2C56A8,#1E3E7E)">规</div><div class="nm"><b>规划器</b><span>Planner · 主智能体</span></div><span class="tag ok">就绪</span></div><div class="goal">接收业务诉求，拆解为可并行子任务并委派给执行智能体，最终汇总交付。</div><div class="tl"><span class="tag brand">目录读取</span><span class="tag brand">网页搜索</span><span class="tag dim">+6</span></div></div>
+                <div class="ag"><div class="hd"><div class="aav" style="background:linear-gradient(135deg,#2E9E6B,#1F7A52)">研</div><div class="nm"><b>研究员</b><span>Researcher · 信息检索</span></div><span class="tag ok">就绪</span></div><div class="goal">围绕主题进行多源检索与事实核查，产出带来源标注的调研摘要。</div><div class="tl"><span class="tag brand">serper</span><span class="tag brand">arxiv</span><span class="tag warn">tavily*</span></div></div>
+                <div class="ag"><div class="hd"><div class="aav" style="background:linear-gradient(135deg,#F26B3A,#C8532B)">开</div><div class="nm"><b>开发者</b><span>Developer · 工程实施</span></div><span class="tag ok">就绪</span></div><div class="goal">按规格编写并落地前端/后端代码，运行沙箱验证，输出可交付的变更摘要。</div><div class="tl"><span class="tag brand">code_interpreter</span><span class="tag dim">+3</span></div></div>
+                <div class="ag"><div class="hd"><div class="aav" style="background:linear-gradient(135deg,#2E7FA0,#1E546e)">测</div><div class="nm"><b>质检员</b><span>QA · 验证与审核</span></div><span class="tag warn">需配置</span></div><div class="goal">对照验收标准执行测试用例，标记缺陷等级并产出回归结论。</div><div class="tl"><span class="tag brand">参数·测试</span><span class="tag warn">vision*</span></div></div>
+                <div class="ag"><div class="hd"><div class="aav" style="background:linear-gradient(135deg,#C2761B,#9A5D14)">文</div><div class="nm"><b>文案编辑</b><span>Editor · 内容润色</span></div><span class="tag ok">就绪</span></div><div class="goal">统一文风与术语，输出符合品牌调性的最终成稿。</div><div class="tl"><span class="tag dim">—</span></div></div>
+                <div class="ag"><div class="hd"><div class="aav" style="background:linear-gradient(135deg,#7A5AC9,#5B3E9E)">档</div><div class="nm"><b>文档管家</b><span>Docs · 知识管理</span></div><span class="tag ok">就绪</span></div><div class="goal">维护知识库结构，检索与归档企业文档资产。</div><div class="tl"><span class="tag brand">rag_search</span><span class="tag brand">file_read</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note"><span class="t">01</span><span><b>工具标签语义化：</b>就绪工具品牌蓝、需 Key 工具橙色加 <b>*</b>（如 tavily*），绑定缺口在卡片上一眼可见</span></div>
+      <div class="note"><span class="t">02</span><span><b>状态三态：</b>就绪（绿点）/ 需配置（橙点）/ 停用（灰），悬停整卡抬升 + 阴影加深，点击进入右侧配置抽屉（模型/温度/记忆/工具多选）</span></div>
+      <div class="note"><span class="t">03</span><span><b>头像系统：</b>角色首字渐变方块 + 中文首字，多智能体消息流/成员栈共用同一视觉锚点</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 05 工具库 ============ -->
+  <div class="screen" id="s-tools">
+    <div class="screen-cap"><span class="sno">SCREEN 04</span><h3>工具库 Tools</h3><span>96 个工具的目录化呈现：状态色边 + 来源徽章 + 参数 Schema 前缀</span></div>
+    <div class="frame">
+      <div class="frame-bar"><div class="dots"><i></i><i></i><i></i></div><div class="frame-url">app.crewai-workbench.local/tools</div><div class="frame-meta">96 tools · CrewAI 官方 + 内置</div></div>
+      <div class="canvas">
+        <div class="app" style="height:520px">
+          <div class="rail"><div class="logo">◆</div><div class="ri">▦</div><div class="ri">✧</div><div class="ri">◉</div><div class="ri">≣</div><div class="ri active">▶</div><div class="ri">⧉</div></div>
+          <div class="side">
+            <div class="sg">总 览</div><div class="si">平台概览</div>
+            <div class="sg">协作核心</div><div class="si">协作工作台</div><div class="si">智能体配置</div><div class="si">协作编排配置</div><div class="si">流程编排 Flows</div><div class="si">应用管理</div>
+            <div class="sg">资产与能力</div><div class="si active" style="color:var(--brand);font-weight:600">工具库</div><div class="si">知识库</div><div class="si">记忆管理</div>
+            <div class="sp"></div><div class="si user"><div class="av">林</div> 林晓</div>
+          </div>
+          <div class="main">
+            <div class="top"><div class="crumb">首页 / <b>工具库</b></div><div class="search">🔍 搜索工具名 / 参数…<span class="kbd">⌘K</span></div><div class="sp"></div><div class="bell"></div><div class="av2">琳</div></div>
+            <div class="content">
+              <div class="ph"><h4>工具目录</h4><span class="tag brand">96</span><div class="cnt"><div class="btn ghost">仅看就绪</div><div class="btn">＋ 自定义工具</div></div></div>
+              <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+                <div class="kpi"><div class="lb">工具总数</div><div class="vl">96</div></div>
+                <div class="kpi"><div class="lb">就绪可用</div><div class="vl" style="color:var(--ok)">28</div></div>
+                <div class="kpi"><div class="lb">需配密钥</div><div class="vl" style="color:var(--warn)">9</div></div>
+                <div class="kpi"><div class="lb">占位待接</div><div class="vl" style="color:var(--dim)">59</div></div>
+              </div>
+              <div class="filters">
+                <span class="tag brand" style="padding:4px 12px">全部</span><span class="tag dim" style="padding:4px 12px">文档与知识</span><span class="tag dim" style="padding:4px 12px">搜索与信息</span><span class="tag dim" style="padding:4px 12px">数据与计算</span><span class="tag dim" style="padding:4px 12px">网页抓取</span><span class="tag dim" style="padding:4px 12px">自动化与平台</span>
+              </div>
+              <div class="tool-grid">
+                <div class="tool okk"><div class="hd"><span>📄</span><b>file_read</b><span class="src">CrewAI</span></div><div class="ds">读取本地文件内容，支持按行读取大文件</div><div class="args">file_path: str</div><div class="ft"><span class="tag ok">就绪</span><div class="btn">绑定</div></div></div>
+                <div class="tool okk"><div class="hd"><span>🔍</span><b>web_search</b><span class="src">内置</span></div><div class="ds">真实搜索互联网获取资讯（DuckDuckGo）</div><div class="args">keyword: str</div><div class="ft"><span class="tag ok">就绪</span><div class="btn">绑定</div></div></div>
+                <div class="tool okk"><div class="hd"><span>📚</span><b>arxiv_search</b><span class="src">CrewAI</span></div><div class="ds">搜索 arXiv 学术论文，无 Key 可用</div><div class="args">query: str</div><div class="ft"><span class="tag ok">就绪</span><div class="btn">绑定</div></div></div>
+                <div class="tool okk"><div class="hd"><span>⚙️</span><b>code_interpreter</b><span class="src">CrewAI</span></div><div class="ds">受限沙箱执行 Python 代码并返回输出</div><div class="args">code: str</div><div class="ft"><span class="tag ok">就绪</span><div class="btn">绑定</div></div></div>
+                <div class="tool warnk"><div class="hd"><span>🌐</span><b>serper_search</b><span class="src">CrewAI</span></div><div class="ds">Google 搜索结果，配置 SERPER_API_KEY 后启用</div><div class="args">query: str</div><div class="ft"><span class="tag warn">需 Key</span><div class="btn">配置</div></div></div>
+                <div class="tool warnk"><div class="hd"><span>🔎</span><b>tavily_search</b><span class="src">CrewAI</span></div><div class="ds">Tavily AI 搜索与内容提取</div><div class="args">query: str</div><div class="ft"><span class="tag warn">需 Key</span><div class="btn">配置</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note"><span class="t">01</span><span><b>状态色顶边：</b>就绪=绿、需 Key=橙、占位=灰，整卡顶部 2px 色边替代大块状态底色，列表更安静</span></div>
+      <div class="note"><span class="t">02</span><span><b>来源徽章 + Mono 名称：</b>CrewAI 官方 / 平台内置显性区分，工具名用等宽字体可与参数 schema 对齐阅读</span></div>
+      <div class="note"><span class="t">03</span><span><b>参数前缀行：</b>file_path: str / query: str 一列式预览，快速确认调用契约；「绑定/配置」按状态自动切换主按钮文案</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 06 流程编排 ============ -->
+  <div class="screen" id="s-flows">
+    <div class="screen-cap"><span class="sno">SCREEN 05</span><h3>流程编排 Flows</h3><span>状态机画布：节点状态着色 + 选择聚焦 + 右侧属性/日志</span></div>
+    <div class="frame">
+      <div class="frame-bar"><div class="dots"><i></i><i></i><i></i></div><div class="frame-url">app.crewai-workbench.local/flows</div><div class="frame-meta">状态机 · 实时</div></div>
+      <div class="canvas"><div class="flows">
+        <div class="flist">
+          <h6>流程列表</h6>
+          <div class="fitem active" style="background:#fff"><b>点餐下单流程</b><span><span class="run-dot"></span> 运行中 · 12 次</span></div>
+          <div class="fitem"><b>支付回调确认</b><span>5 次 · 4m 前</span></div>
+          <div class="fitem"><b>出餐状态推送</b><span>23 次 · 2m 前</span></div>
+          <div class="fitem"><b>新员工入职</b><span>昨 完成 2 次</span></div>
+          <div style="margin-top:auto;color:var(--brand);font-weight:700;font-size:12px;padding:8px 10px">＋ 新建流程</div>
+        </div>
+        <div class="fcanvas">
+          <div class="node done" style="left:30px;top:90px"><b>触发·用户下单</b><span>webhook / app</span></div>
+          <div class="node done" style="left:230px;top:50px"><b>预检·库存/价格</b><span>agent: 目录校验</span></div>
+          <div class="node run sel" style="left:430px;top:90px"><b>下单·写入订单库</b><span>agent: 下单执行</span></div>
+          <div class="node wait" style="left:630px;top:50px"><b>确认·收银台支付</b><span>gateway: 审批</span></div>
+          <div class="node wait" style="left:630px;top:170px"><b>通知·后厨 Sink</b><span>事件广播</span></div>
+          <div class="edge" style="left:150px;top:118px;width:120px"></div>
+          <div class="edge" style="left:350px;top:82px;width:120px"></div>
+          <div class="edge" style="left:540px;top:112px;width:130px"></div>
+          <div class="edge" style="left:540px;top:140px;width:120px"></div>
+        </div>
+        <div class="fright">
+          <div class="pr" style="flex:none"><h6>属性 · 下单节点</h6>
+            <div class="kv"><b>名称</b><span>下单·写入订单库</span></div>
+            <div class="kv"><b>状态</b><span class="tag accent">运行中</span></div>
+            <div class="kv"><b>绑定智能体</b><span>下单执行</span></div>
+            <div class="kv"><b>步骤</b><span>3 / 6</span></div>
+            <div class="kv"><b>最近运行</b><span>2s 前</span></div>
+          </div>
+          <div class="pr" style="flex:none"><h6>实时日志</h6></div>
+          <div class="logs">
+<span class="t">[10:24:01]</span> trigger: order.created<br/>
+<span class="t">[10:24:01]</span> preflight ✓ stock ok<br/>
+<span class="w">[10:24:02]</span> agent: 下单执行 → order.write<br/>
+<span class="ok">[10:24:02]</span> done: order #1024 写入<br/>
+<span class="w">[10:24:03]</span> await: 支付审批（人工）<br/>
+          </div>
+        </div>
+      </div></div>
+    </div>
+    <div class="notes">
+      <div class="note"><span class="t">01</span><span><b>画布节点状态化：</b>done 绿边 / running 橙边+脉冲 / waiting 灰边，选中节点 outline 品牌蓝 — 流程健康度零成本扫读</span></div>
+      <div class="note"><span class="t">02</span><span><b>属性 + 日志联动：</b>右栏上半为选中节点配置（绑定智能体/步骤/最近运行），下半为 Mono 实时日志（暗底），无需跳转即可观测</span></div>
+      <div class="note"><span class="t">03</span><span><b>审批汇点可视化：</b>需人工确认的节点以「gateway: 审批」标签标出，跑在流程中的审批卡点一眼可见</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 07 应用管理 ============ -->
+  <div class="screen" id="s-apps">
+    <div class="screen-cap"><span class="sno">SCREEN 06</span><h3>应用管理 Apps</h3><span>应用运行时目录：渐变封面 + 状态 + 打开按钮，点餐系统作为首发案例高亮</span></div>
+    <div class="frame">
+      <div class="frame-bar"><div class="dots"><i></i><i></i><i></i></div><div class="frame-url">app.crewai-workbench.local/apps</div><div class="frame-meta">应用运行时 · 薄托管</div></div>
+      <div class="canvas">
+        <div class="app" style="height:460px">
+          <div class="rail"><div class="logo">◆</div><div class="ri">▦</div><div class="ri">✧</div><div class="ri">◉</div><div class="ri">≣</div><div class="ri">▶</div><div class="ri active">⧉</div></div>
+          <div class="side">
+            <div class="sg">总 览</div><div class="si">平台概览</div>
+            <div class="sg">协作核心</div><div class="si">协作工作台</div><div class="si">智能体配置</div><div class="si">协作编排配置</div><div class="si">流程编排 Flows</div><div class="si active" style="color:var(--brand);font-weight:600">应用管理</div>
+            <div class="sg">资产与能力</div><div class="si">工具库</div><div class="si">知识库</div><div class="si">记忆管理</div>
+            <div class="sp"></div><div class="si user"><div class="av">林</div> 林晓</div>
+          </div>
+          <div class="main">
+            <div class="top"><div class="crumb">首页 / <b>应用管理</b></div><div class="search">🔍 搜索应用…<span class="kbd">⌘K</span></div><div class="sp"></div><div class="pill">🏢 明远科技 · demo</div><div class="bell"></div><div class="av2">琳</div></div>
+            <div class="content">
+              <div class="ph"><h4>应用目录</h4><span class="tag brand">3 个应用</span><div class="cnt"><div class="btn pri">＋ 提交应用</div></div></div>
+              <div class="app-grid">
+                <div class="ap">
+                  <div class="cover" style="background:linear-gradient(120deg,#1E3E7E,#3A6BC4 55%,#62B3E0)">
+                    <div class="icon">🍱</div><div><b>点餐系统</b><span>Menu Ordering · 首发应用</span></div>
+                    <span class="tag" style="position:absolute;right:14px;top:14px;background:rgba(255,255,255,.2);color:#fff">已上线</span>
+                  </div>
+                  <div class="bd"><div class="ds">基于 Flows 状态机编排的点餐全流程：菜单、下单、收银支付、后厨 Sink，多智能体协同接单。</div>
+                    <div class="ft"><span class="tag ok">● 运行正常</span><span class="ver">v1.4.0 · 3 店</span><div class="btn pri" style="margin-left:auto">打开</div></div></div>
+                </div>
+                <div class="ap">
+                  <div class="cover" style="background:linear-gradient(120deg,#C8532B,#F26B3A 60%,#F5A96B)">
+                    <div class="icon">💬</div><div><b>企业知识问答</b><span>KB QA · 知识库 RAG</span></div>
+                    <span class="tag" style="position:absolute;right:14px;top:14px;background:rgba(255,255,255,.2);color:#fff">内测</span>
+                  </div>
+                  <div class="bd"><div class="ds">员工以自然语言查询制度、SOP 与项目文档，答案附来源与置信度，知识库实时检索。</div>
+                    <div class="ft"><span class="tag accent">● 内测中</span><span class="ver">v0.9.1</span><div class="btn" style="margin-left:auto">打开</div></div></div>
+                </div>
+                <div class="ap">
+                  <div class="cover" style="background:linear-gradient(120deg,#1F7A52,#2E9E6B 55%,#6FC79B)">
+                    <div class="icon">📊</div><div><b>经营数据看板</b><span>Analytics · 观测台</span></div>
+                  </div>
+                  <div class="bd"><div class="ds">聚合多店订单与后厨时效指标，运行日志联动，实时洞察经营健康度。</div>
+                    <div class="ft"><span class="tag dim">待提交</span><span class="ver">snapshot</span><div class="btn" style="margin-left:auto">配置</div></div></div>
+                </div>
+                <div class="newap">＋ 新应用（对话生成 Manifest）</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note"><span class="t">01</span><span><b>应用卡片封面系统：</b>品牌渐变 + 半透明图标 + 左上状态角标，点餐系统用首发蓝色谱强调，与应用运行时 manifest 一一对应</span></div>
+      <div class="note"><span class="t">02</span><span><b>卡片内嵌运行态：</b>「● 运行正常 / 内测中 / 待提交」+ 版本 Mono 徽章 + 打开按钮，应用健康度不进详情即可判断</span></div>
+      <div class="note"><span class="t">03</span><span><b>空白卡片：</b>「新应用 · 对话生成 Manifest」虚线入口，延续应用运行时“薄托管”的自然语言构建路径</span></div>
+    </div>
+  </div>
+
+  <!-- ============ 08 动效规格 ============ -->
+  <div class="sec-head"><span class="idx">07 / Motion</span><h2>动效与反馈规格</h2><p>操作型界面的动效预算：克制、可感知、尊重系统设置</p></div>
+  <div class="motion">
+    <div class="mo"><b>卡片悬停抬升</b><span>平移 2px + 阴影升一级，仅卡片级（智能体/应用/工具）</span><code>0.2s var(--cubic)</code></div>
+    <div class="mo"><b>运行状态脉冲</b><span>橙色状态点 2s 呼吸，用于「运行中」任务/会话/节点</span><code>pulse 2s</code></div>
+    <div class="mo"><b>侧栏激活胶囊</b><span>白底胶囊 + 珊瑚橙竖条，0.18s 位移过渡</span><code>180ms</code></div>
+    <div class="mo"><b>页面进场 stagger</b><span>内容区块按 40ms 级联淡入，仅首屏一次</span><code>stagger 40ms</code></div>
+    <div class="mo"><b>顶栏毛玻璃</b><span>滚动后 12px 模糊 + 86% 暖白，保持层级不抢内容</span><code>blur 12px</code></div>
+    <div class="mo"><b>无障碍降级</b><span>prefers-reduced-motion 时关闭全部位移动画，只保留透明度</span><code>@media</code></div>
+  </div>
+
+  <!-- ============ 09 暗色预览 ============ -->
+  <div class="sec-head"><span class="idx">08 / Dark</span><h2>暗色预览 · 后续迭代</h2><p>本轮仅出预览，不进入实施范围；暗色基座用「海军蓝灰」而非纯黑反转，保留品牌暖感</p></div>
+  <div class="dark-frame">
+    <div class="dark-kpi"><div class="lb">智能体总数</div><div class="vl">12 <span class="delta">▲ 2</span></div></div>
+    <div class="dark-kpi"><div class="lb">协作编排</div><div class="vl">8 <span class="delta">▲ 1</span></div></div>
+    <div class="dark-kpi"><div class="lb">今日运行</div><div class="vl">46 <span class="delta">▲ 12%</span></div></div>
+    <div class="dark-kpi"><div class="lb">待审批</div><div class="vl" style="color:#E6B56C">3</div></div>
+    <div style="grid-column:1/-1">
+      <div style="display:flex;gap:8px">
+        <span class="mono-chip" style="background:#171C2B;border-color:#232A3D;color:#8B92A8">bg #10131C</span>
+        <span class="mono-chip" style="background:#171C2B;border-color:#232A3D;color:#8B92A8">panel #171C2B</span>
+        <span class="mono-chip" style="background:#171C2B;border-color:#232A3D;color:#8B92A8">text #E9ECF5</span>
+        <span class="mono-chip" style="background:#171C2B;border-color:#232A3D;color:#6FA3E8">brand-glow #3A6BC4</span>
+      </div>
+      <p class="dark-note">暗色将采用「面板比背景亮一档」的堆叠方式（#10131C → #171C2B → #1F2637），品牌色以发光层呈现；启用时机由「跟随系统 + 每用户偏好」控制，不做全局强行切换。</p>
+    </div>
+  </div>
+
+  <div class="foot"><span>CrewAI 企业协作平台 · 设计稿 v2 · 品牌产品化精修</span><span>评审通过后按「Token → 全局 → 分屏」顺序落地，输入法/暗色为二期</span></div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "name": "番茄牛腩煲",
+    "category": "热菜",
+    "price": 68,
+    "inventory": 20,
+    "emoji": "🍲",
+    "desc": "慢炖牛腩，番茄浓汤"
+  },
+  {
+    "id": 2,
+    "name": "水煮鱼",
+    "category": "热菜",
+    "price": 88,
+    "inventory": 15,
+    "emoji": "🐟",
+    "desc": "麻辣鲜香，鲜活黑鱼"
+  },
+  {
+    "id": 3,
+    "name": "宫保鸡丁",
+    "category": "热菜",
+    "price": 42,
+    "inventory": 30,
+    "emoji": "🍗",
+    "desc": "经典川味，花生酥脆"
+  },
+  {
+    "id": 4,
+    "name": "辣子鸡",
+    "category": "热菜",
+    "price": 48,
+    "inventory": 25,
+    "emoji": "🌶️",
+    "desc": "外酥里嫩，麻辣干香"
+  },
+  {
+    "id": 5,
+    "name": "鱼香肉丝",
+    "category": "热菜",
+    "price": 38,
+    "inventory": 25,
+    "emoji": "🥢",
+    "desc": "甜酸微辣，下饭神器"
+  },
+  {
+    "id": 6,
+    "name": "凉拌木耳",
+    "category": "凉菜",
+    "price": 22,
+    "inventory": 18,
+    "emoji": "🥗",
+    "desc": "爽口开胃，蒜香浓郁"
+  },
+  {
+    "id": 7,
+    "name": "干煸四季豆",
+    "category": "热菜",
+    "price": 28,
+    "inventory": 22,
+    "emoji": "🫘",
+    "desc": "干香脆嫩，麻辣适口"
+  },
+  {
+    "id": 8,
+    "name": "酸辣土豆丝",
+    "category": "热菜",
+    "price": 18,
+    "inventory": 40,
+    "emoji": "🥔",
+    "desc": "酸辣爽脆，家常味道"
+  },
+  {
+    "id": 9,
+    "name": "米饭",
+    "category": "主食",
+    "price": 4,
+    "inventory": 100,
+    "emoji": "🍚",
+    "desc": "东北大米"
+  },
+  {
+    "id": 10,
+    "name": "冰镇可乐",
+    "category": "饮品",
+    "price": 6,
+    "inventory": 50,
+    "emoji": "🥤",
+    "desc": "330ml"
+  }
+]

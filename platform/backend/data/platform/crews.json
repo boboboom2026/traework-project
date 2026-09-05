@@ -1,0 +1,82 @@
+[
+  {
+    "id": "ebfe1fa4",
+    "name": "市场分析工作流",
+    "description": "调研 → 分析 → 成稿 的三步协作流程",
+    "process": "sequential",
+    "manager_agent_id": "69a868d4",
+    "planning": true,
+    "memory": false,
+    "tasks": [
+      {
+        "id": "c97e1be9",
+        "title": "调研",
+        "agent_name": "资深市场调研员",
+        "description": "对目标市场进行调研，搜集规模、增速、玩家与趋势信息",
+        "expected_output": "结构化调研结论；"
+      },
+      {
+        "id": "1e6aab4f",
+        "title": "分析",
+        "agent_name": "数据分析师",
+        "description": "基于调研结论做商业分析，输出洞察与建议",
+        "expected_output": "分析洞察 + 行动建议"
+      },
+      {
+        "id": "09e6631a",
+        "title": "成稿",
+        "agent_name": "报告撰稿人",
+        "description": "汇总调研与分析结论，撰写结构完整的分析报告",
+        "expected_output": "《目标课题分析报告》完整初稿"
+      }
+    ]
+  },
+  {
+    "name": "多形态演示",
+    "description": "",
+    "process": "sequential",
+    "manager_agent_id": null,
+    "planning": false,
+    "memory": false,
+    "tasks": [
+      {
+        "id": "t-17883695197130",
+        "title": "基础数据",
+        "agent_name": "资深市场调研员",
+        "description": "输出一句话\"本次调研关键数字是 42\"",
+        "expected_output": "输出一句话，包含关键数字 42",
+        "use_upstream": true,
+        "output_type": "text"
+      },
+      {
+        "id": "t-17883695197131",
+        "title": "结构化总结",
+        "agent_name": "数据分析师",
+        "description": "基于上游数字输出 JSON 对象，字段 {\"source_number\":上游数字, \"summary\":\"结论\", \"tags\":[\"a\"]}",
+        "expected_output": "",
+        "use_upstream": false,
+        "output_type": "json"
+      }
+    ],
+    "id": "c1f60978"
+  },
+  {
+    "name": "RAG 验证编排",
+    "process": "sequential",
+    "tasks": [
+      {
+        "title": "知识问答",
+        "agent_name": "资深市场调研员",
+        "description": "基于知识库资料准确回答客户关于产品的问题",
+        "expected_output": "准确、符合企业内部资料的答案",
+        "knowledge_ids": [
+          "e53fe596"
+        ],
+        "use_knowledge": true
+      }
+    ],
+    "id": "f8368fcf",
+    "planning": false,
+    "memory": false
+  }
+]

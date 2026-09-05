@@ -1,0 +1,138 @@
+import { useEffect, useState } from "react";
+import { del, get, post, put } from "../api.js";
+
+const PROV_ICON = { openai: "🔷", anthropic: "✳️", gemini: "🔮", azure: "☁️", bedrock: "🏝", snowflake: "❄️", openai_compatible: "🔌", custom: "🔌", deepseek: "⚡" };
+
+export default function Providers() {
+  const [providers, setProviders] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [testState, setTestState] = useState({}); // id -> {testing:boolean, ok:bool, text:string}
+
+  const load = () => get("/api/llm-providers").then((r) => setProviders(r.providers || [])).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  async function testConn(p) {
+    setTestState((s) => ({ ...s, [p.id]: { testing: true } }));
+    try {
+      const r = await post(`/api/llm-providers/${p.id}/test`, {});
+      setTestState((s) => ({ ...s, [p.id]: { testing: false, ok: r.ok, text: r.ok ? (r.reply || r.message || "连通") : r.error } }));
+    } catch (err) {
+      setTestState((s) => ({ ...s, [p.id]: { testing: false, ok: false, text: err.message } }));
+    }
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const rec = {
+      name: fd.get("name"), provider: fd.get("provider"), model: fd.get("model"),
+      api_key: fd.get("api_key"), base_url: fd.get("base_url"),
+      kind: fd.get("kind") || "chat",
+      temperature: Number(fd.get("temperature") || 0.2),
+    };
+    try {
+      if (editing.id) await put(`/api/llm-providers/${editing.id}`, rec);
+      else await post("/api/llm-providers", rec);
+      setEditing(null);
+      load();
+    } catch (err) { alert(`保存失败：${err.message}`); }
+  }
+
+  return (
+    <div>
+      <div className="panel-h">
+        <h3>模型接入与凭据 · {providers.length} 个</h3>
+        <button className="btn pri" onClick={() => setEditing({})}>＋ 添加提供商</button>
+      </div>
+      <div className="cards">
+        {providers.map((p) => (
+          <div className="ag-card" key={p.id}>
+            <div className="hd">
+              <div className="nm"><span className="em">{PROV_ICON[p.provider] || "🔌"}</span>{p.name}
+                {p.builtin && <span className="tag info">内置</span>}
+                <span className={"tag " + (p.kind === "embedding" ? "warn" : "neutral")}>{p.kind === "embedding" ? "嵌入模型" : "对话模型"}</span>
+              </div>
+            </div>
+            <div className="role">{p.provider}/{p.model} · temperature={p.temperature}</div>
+            <div className="role" style={{ color: "var(--dim)" }}>{p.notes || (p.base_url ? `Base URL：${p.base_url}` : "未填写 Base URL")}</div>
+            <div className="ft">
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>{p.api_key ? "🔑 已填凭据" : "未填 Key（可编辑补充）"}</span>
+              <span>
+                <button className="btn green sm" disabled={testState[p.id]?.testing} onClick={() => testConn(p)}>
+                  {testState[p.id]?.testing ? "测试中…" : "连接测试"}
+                </button>
+                <button className="btn ghost sm" onClick={() => setEditing({ ...p })}>编辑</button>
+                {!p.builtin && <button className="btn ghost sm" style={{ color: "var(--danger)" }} onClick={() => { if (confirm("删除该提供商？")) del(`/api/llm-providers/${p.id}`).then(load); }}>删除</button>}
+              </span>
+            </div>
+            {testState[p.id] && !testState[p.id].testing && (
+              <div style={{ fontSize: 12.5, color: testState[p.id].ok ? "var(--ok)" : "var(--danger)", borderTop: "1px dashed var(--border)", paddingTop: 8, wordBreak: "break-all" }}>
+                {testState[p.id].ok ? `✓ 连接成功 · 模型回复：${testState[p.id].text}` : `✗ 连接失败：${testState[p.id].text}`}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {editing && (
+        <div className="modal-mask" onClick={() => setEditing(null)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+            <h2>{editing.id ? `编辑提供商 · ${editing.name}` : "添加 LLM 提供商"}</h2>
+            <div className="row">
+              <div className="field">
+                <label>名称</label>
+                <input className="input" name="name" required defaultValue={editing.name} placeholder="如：公司 GPT-4o" />
+              </div>
+              <div className="field">
+                <label>用途类型</label>
+                <select className="input" name="kind" defaultValue={editing.kind || "chat"}>
+                  <option value="chat">对话模型 chat（智能体推理）</option>
+                  <option value="embedding">嵌入模型 embedding（知识库 RAG）</option>
+                </select>
+                <div className="hint">嵌入模型用于知识库向量化与检索；配置后新增/更新文档自动真实嵌入。</div>
+              </div>
+            </div>
+            <div className="row">
+              <div className="field">
+                <label>提供商类型</label>
+                <select className="input" name="provider" defaultValue={editing.provider || "openai_compatible"}>
+                  <option value="openai_compatible">OpenAI 兼容接口（DeepSeek/通义/智谱等）</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="gemini">Gemini</option>
+                  <option value="azure">Azure OpenAI</option>
+                  <option value="bedrock">AWS Bedrock</option>
+                  <option value="snowflake">Snowflake</option>
+                </select>
+              </div>
+            </div>
+            <div className="row">
+              <div className="field">
+                <label>模型（model）</label>
+                <input className="input" name="model" required defaultValue={editing.model} placeholder="对话：gpt-4o；嵌入：text-embedding-3-small / bge-m3" />
+              </div>
+              <div className="field">
+                <label>Temperature</label>
+                <input className="input" name="temperature" type="number" step="0.1" min={0} max={2} defaultValue={editing.temperature ?? 0.2} />
+                <div className="hint">仅对话模型生效，嵌入模型可忽略。</div>
+              </div>
+            </div>
+            <div className="field">
+              <label>Base URL（兼容接口必填）</label>
+              <input className="input" name="base_url" defaultValue={editing.base_url} placeholder="https://api.example.com/v1" />
+            </div>
+            <div className="field">
+              <label>API Key</label>
+              <input className="input" name="api_key" type="password" defaultValue={editing.api_key} placeholder="sk-…" />
+              <div className="hint">平台仅引用凭据、不落明文展示；填写后可用「连接测试」验证连通性。</div>
+            </div>
+            <div className="ft">
+              <button type="button" className="btn" onClick={() => setEditing(null)}>取消</button>
+              <button type="submit" className="btn pri">保存</button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
