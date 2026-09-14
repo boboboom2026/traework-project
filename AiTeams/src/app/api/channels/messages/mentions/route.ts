@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
-import { S3Storage } from "coze-coding-dev-sdk";
+import { S3Storage } from "@/lib/coze-compat";
 import { getCachedSignedUrl, setCachedSignedUrl } from "@/storage/database/shared/signed-url-cache";
 
 const storage = new S3Storage({

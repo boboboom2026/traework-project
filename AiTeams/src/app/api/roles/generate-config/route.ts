@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { LLMClient, Config, HeaderUtils } from "coze-coding-dev-sdk";
+import { LLMClient, Config, HeaderUtils } from "@/lib/coze-compat";
 
 // POST /api/roles/generate-config - AI 根据岗位职责自动生成 Hermes 6层配置
 export async function POST(request: NextRequest) {

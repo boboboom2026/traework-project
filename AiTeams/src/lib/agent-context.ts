@@ -6,7 +6,7 @@
  */
 
 import { getSupabaseClient } from "@/storage/database/supabase-client";
-import { EmbeddingClient, type ContentPart } from "coze-coding-dev-sdk";
+import { EmbeddingClient, type ContentPart } from "@/lib/coze-compat";
 import { batchGenerateSignedUrls } from "@/storage/database/shared/signed-url-cache";
 
 // ============ 类型定义 ============

@@ -9,7 +9,7 @@
  */
 
 import { getSupabaseClient } from "@/storage/database/supabase-client";
-import { EmbeddingClient, FetchClient, S3Storage, type ContentPart } from "coze-coding-dev-sdk";
+import { EmbeddingClient, FetchClient, S3Storage, type ContentPart } from "@/lib/coze-compat";
 
 // ============ 常量 ============
 
@@ -189,7 +189,7 @@ export function parseTextContent(content: string): string {
  * 适用于 TXT、MD、CSV 等纯文本格式
  */
 export async function parseTextFileFromS3(fileKey: string): Promise<string> {
-  const { S3Storage } = await import("coze-coding-dev-sdk");
+  const { S3Storage } = await import("@/lib/coze-compat");
   const storage = new S3Storage({
     endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
     accessKey: "",

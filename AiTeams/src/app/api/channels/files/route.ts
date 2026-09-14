@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { batchGenerateSignedUrls } from "@/storage/database/shared/signed-url-cache";
 import { recordChannelFiles, removeChannelFile, inferFileType } from "@/lib/channel-files";
-import { S3Storage } from "coze-coding-dev-sdk";
+import { S3Storage } from "@/lib/coze-compat";
 
 const storage = new S3Storage({
   endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,

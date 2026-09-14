@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
-import { S3Storage, HeaderUtils } from "coze-coding-dev-sdk";
+import { S3Storage, HeaderUtils } from "@/lib/coze-compat";
 import { batchGenerateSignedUrls } from "@/storage/database/shared/signed-url-cache";
 import { generateMessageEmbedding } from "@/lib/agent-context";
 import { triggerAiAssistant } from "@/lib/ai-assistant-service";
