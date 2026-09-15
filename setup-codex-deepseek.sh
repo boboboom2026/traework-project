@@ -12,9 +12,10 @@
 # 可选环境变量：
 #   CODEX_MODEL      默认 deepseek-flash
 #   TTYD_PORT        网页终端端口，默认 7681
-#   TTYD_USER        网页终端用户名，默认 codex
-#   TTYD_PASSWORD    网页终端密码，默认随机生成并打印
 #   WORKDIR          网页终端工作目录，默认 /workspace
+#
+# 注意：网页终端本身不再设密码，认证交给 Trae 预览代理（requires_auth=true）。
+# 原因是预览代理与 ttyd 各要一次密码会造成 iframe 内认证弹窗被拦截、页面空白。
 #
 set -euo pipefail
 
@@ -84,8 +85,6 @@ EOF
 
 echo "==> 4/4 启动网页终端（ttyd）"
 TTYD_PORT="${TTYD_PORT:-7681}"
-TTYD_USER="${TTYD_USER:-codex}"
-TTYD_PASSWORD="${TTYD_PASSWORD:-$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-12)}"
 WORKDIR="${WORKDIR:-/workspace}"
 
 # Codex 的交互 TUI 需要真 TTY；沙箱内的 Agent shell 是 TERM=dumb + stdin=EOF，起不来。
@@ -114,13 +113,12 @@ else
   fi
 
   if command -v ttyd >/dev/null 2>&1; then
-    nohup ttyd -p "$TTYD_PORT" -W -c "${TTYD_USER}:${TTYD_PASSWORD}" \
+    nohup ttyd -p "$TTYD_PORT" -W \
       -t "titleFixed=Codex (DeepSeek)" -t fontSize=14 \
       -w "$WORKDIR" bash -l >/tmp/ttyd.log 2>&1 &
     sleep 1
     if port_busy; then
       echo "    已启动：http://localhost:${TTYD_PORT}/"
-      echo "    凭证：${TTYD_USER} / ${TTYD_PASSWORD}"
       echo "    浏览器访问需让 Agent 对该端口执行 OpenPreview（脚本无法注册预览）"
     else
       echo "    启动失败，日志：/tmp/ttyd.log"
