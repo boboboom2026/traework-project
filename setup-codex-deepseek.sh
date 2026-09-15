@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 #
-# 一键恢复 Codex CLI + DeepSeek 配置。
-# 容器重置后重新执行本脚本即可恢复（安装产物原本落在 ~/.codex 与 npm 全局目录，
-# 都不在 /workspace 内，容器重启会丢失）。
+# 一键恢复 Codex CLI + DeepSeek 配置 + 网页终端（ttyd）。
+# 容器重置后重新执行本脚本即可恢复（安装产物原本落在 ~/.codex、npm 全局目录、
+# /usr/local/bin，都不在 /workspace 内，容器重启会丢失）。
 #
 #   bash setup-codex-deepseek.sh
 #
 # 使用前请导出 DeepSeek API Key（不写入本仓库）：
 #   export DEEPSEEK_API_KEY=sk-...
+#
+# 可选环境变量：
+#   CODEX_MODEL      默认 deepseek-flash
+#   TTYD_PORT        网页终端端口，默认 7681
+#   TTYD_USER        网页终端用户名，默认 codex
+#   TTYD_PASSWORD    网页终端密码，默认随机生成并打印
+#   WORKDIR          网页终端工作目录，默认 /workspace
 #
 set -euo pipefail
 
@@ -17,7 +24,7 @@ DEEPSEEK_BASE_URL="https://api.deepseek.com/"
 PROVIDER_ID="deepseek"
 OFFICIAL_SETUP_URL="https://cdn.deepseek.com/api-docs/codex-deepseek-setup-en.sh"
 
-echo "==> 1/3 安装 Codex CLI"
+echo "==> 1/4 安装 Codex CLI"
 if command -v codex >/dev/null 2>&1; then
   echo "    已安装：$(codex --version)"
 else
@@ -25,7 +32,7 @@ else
   echo "    已安装：$(codex --version)"
 fi
 
-echo "==> 2/3 写入模型目录 $CODEX_HOME/models.json"
+echo "==> 2/4 写入模型目录 $CODEX_HOME/models.json"
 mkdir -p "$CODEX_HOME"
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
@@ -39,7 +46,7 @@ for slug in deepseek-flash deepseek-v4-pro; do
 done
 echo "    已写入 deepseek-flash / deepseek-v4-pro"
 
-echo "==> 3/3 写入 $CODEX_HOME/config.toml"
+echo "==> 3/4 写入 $CODEX_HOME/config.toml"
 if [ -f "$CODEX_HOME/config.toml" ]; then
   cp "$CODEX_HOME/config.toml" "$CODEX_HOME/config.toml.bak"
   echo "    已备份原配置到 config.toml.bak"
@@ -74,6 +81,52 @@ base_url = "$DEEPSEEK_BASE_URL"
 wire_api = "responses"
 $AUTH_LINE
 EOF
+
+echo "==> 4/4 启动网页终端（ttyd）"
+TTYD_PORT="${TTYD_PORT:-7681}"
+TTYD_USER="${TTYD_USER:-codex}"
+TTYD_PASSWORD="${TTYD_PASSWORD:-$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-12)}"
+WORKDIR="${WORKDIR:-/workspace}"
+
+# Codex 的交互 TUI 需要真 TTY；沙箱内的 Agent shell 是 TERM=dumb + stdin=EOF，起不来。
+# 用 ttyd 包一个真终端，浏览器里即可正常跑 codex。
+port_busy() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -lnt 2>/dev/null | grep -q ":${TTYD_PORT} "
+  else
+    netstat -lnt 2>/dev/null | grep -q ":${TTYD_PORT} "
+  fi
+}
+
+if port_busy; then
+  echo "    端口 ${TTYD_PORT} 已在监听，跳过启动"
+else
+  if ! command -v ttyd >/dev/null 2>&1; then
+    echo "    未安装 ttyd，从 GitHub Releases 下载..."
+    TAG="$(curl -sSL -m 30 -o /dev/null -w '%{url_effective}' \
+      https://github.com/tsl0922/ttyd/releases/latest 2>/dev/null | sed 's|.*/tag/||')"
+    if [ -n "$TAG" ] && curl -fsSL -m 180 -o /tmp/ttyd.new \
+        "https://github.com/tsl0922/ttyd/releases/download/${TAG}/ttyd.x86_64" 2>/dev/null; then
+      install -m 0755 /tmp/ttyd.new /usr/local/bin/ttyd && rm -f /tmp/ttyd.new
+    else
+      echo "    ttyd 下载失败（检查网络/代理），跳过网页终端；CLI 不受影响"
+    fi
+  fi
+
+  if command -v ttyd >/dev/null 2>&1; then
+    nohup ttyd -p "$TTYD_PORT" -W -c "${TTYD_USER}:${TTYD_PASSWORD}" \
+      -t "titleFixed=Codex (DeepSeek)" -t fontSize=14 \
+      -w "$WORKDIR" bash -l >/tmp/ttyd.log 2>&1 &
+    sleep 1
+    if port_busy; then
+      echo "    已启动：http://localhost:${TTYD_PORT}/"
+      echo "    凭证：${TTYD_USER} / ${TTYD_PASSWORD}"
+      echo "    浏览器访问需让 Agent 对该端口执行 OpenPreview（脚本无法注册预览）"
+    else
+      echo "    启动失败，日志：/tmp/ttyd.log"
+    fi
+  fi
+fi
 
 echo
 echo "完成。当前模型：$CODEX_MODEL"
