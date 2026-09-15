@@ -45,6 +45,17 @@ if [ -f "$CODEX_HOME/config.toml" ]; then
   echo "    已备份原配置到 config.toml.bak"
 fi
 
+# 提供了 DEEPSEEK_API_KEY 就写入 token（DeepSeek 官方做法，之后无需再设环境变量）；
+# 未提供则回退到 env_key，运行时从环境变量读取。
+if [ -n "${DEEPSEEK_API_KEY:-}" ]; then
+  case "$DEEPSEEK_API_KEY" in
+    sk-*) AUTH_LINE="experimental_bearer_token = \"$DEEPSEEK_API_KEY\"" ;;
+    *)    echo "    DEEPSEEK_API_KEY 不以 sk- 开头，中止"; exit 1 ;;
+  esac
+else
+  AUTH_LINE='env_key = "DEEPSEEK_API_KEY"'
+fi
+
 cat > "$CODEX_HOME/config.toml" <<EOF
 # Codex 使用 DeepSeek 作为模型后端
 # 配置依据：https://api-docs.deepseek.com/quick_start/agent_integrations/codex/
@@ -61,7 +72,7 @@ model_catalog_json = "~/.codex/models.json"
 name = "$PROVIDER_ID"
 base_url = "$DEEPSEEK_BASE_URL"
 wire_api = "responses"
-env_key = "DEEPSEEK_API_KEY"
+$AUTH_LINE
 EOF
 
 echo
