@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>供应商管理与采购系统</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="login-view" class="login-wrap">
+    <form class="login-card" id="login-form">
+      <h1>供应商管理与采购系统</h1>
+      <p class="muted">请先登录。演示账号密码见下方按钮，点击即可自动填入。</p>
+      <label>用户名
+        <input name="username" autocomplete="username" required>
+      </label>
+      <label>密码
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="btn primary block" type="submit">登录</button>
+      <div class="demo-accounts">
+        <button type="button" class="chip" data-user="admin" data-pass="admin123">管理员</button>
+        <button type="button" class="chip" data-user="buyer" data-pass="buyer123">采购员</button>
+        <button type="button" class="chip" data-user="approver" data-pass="approver123">审批经理</button>
+      </div>
+      <p id="login-error" class="error"></p>
+    </form>
+  </div>
+
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <div class="brand">供应商管理与采购系统</div>
+      <nav class="tabs" id="tabs">
+        <button data-view="dashboard">看板</button>
+        <button data-view="vendors">供应商</button>
+        <button data-view="scoring">评分</button>
+        <button data-view="products">产品目录</button>
+        <button data-view="orders">采购单</button>
+        <button data-view="approvals">审批</button>
+      </nav>
+      <div class="userbox">
+        <span id="current-user"></span>
+        <button class="btn ghost small" id="logout-btn">退出</button>
+      </div>
+    </header>
+    <main id="content"></main>
+  </div>
+
+  <div id="modal-backdrop" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <header>
+        <h2 id="modal-title"></h2>
+        <button class="btn ghost small" id="modal-close">✕</button>
+      </header>
+      <div id="modal-body"></div>
+      <footer id="modal-footer"></footer>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>

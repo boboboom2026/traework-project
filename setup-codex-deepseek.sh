@@ -78,6 +78,13 @@ forced_login_method = "api"
 web_search = "disabled"
 model_catalog_json = "~/.codex/models.json"
 
+# 全自动模式：不再弹审批框，且放开沙箱。
+# 原因：跑本地测试需要在 127.0.0.1 建 socket，默认沙箱会拦截并弹审批框，
+# 对不熟悉命令行的人很容易误按 Esc 导致回合被中断。
+# 注意：这意味着 Codex 可自由读写容器内任意文件。
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
 [model_providers.$PROVIDER_ID]
 name = "$PROVIDER_ID"
 base_url = "$DEEPSEEK_BASE_URL"
