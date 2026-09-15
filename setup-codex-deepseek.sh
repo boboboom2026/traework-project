@@ -24,6 +24,8 @@ CODEX_MODEL="${CODEX_MODEL:-deepseek-flash}"
 DEEPSEEK_BASE_URL="https://api.deepseek.com/"
 PROVIDER_ID="deepseek"
 OFFICIAL_SETUP_URL="https://cdn.deepseek.com/api-docs/codex-deepseek-setup-en.sh"
+TTYD_PORT="${TTYD_PORT:-7681}"
+WORKDIR="${WORKDIR:-/workspace}"
 
 echo "==> 1/4 安装 Codex CLI"
 if command -v codex >/dev/null 2>&1; then
@@ -81,12 +83,13 @@ name = "$PROVIDER_ID"
 base_url = "$DEEPSEEK_BASE_URL"
 wire_api = "responses"
 $AUTH_LINE
+
+# 预先信任工作目录，免去首次进入时要按的「是否信任」提示（面向不熟悉命令行的使用者）
+[projects."$WORKDIR"]
+trust_level = "trusted"
 EOF
 
 echo "==> 4/4 启动网页终端（ttyd）"
-TTYD_PORT="${TTYD_PORT:-7681}"
-WORKDIR="${WORKDIR:-/workspace}"
-
 # Codex 的交互 TUI 需要真 TTY；沙箱内的 Agent shell 是 TERM=dumb + stdin=EOF，起不来。
 # 用 ttyd 包一个真终端，浏览器里即可正常跑 codex。
 port_busy() {
@@ -113,12 +116,16 @@ else
   fi
 
   if command -v ttyd >/dev/null 2>&1; then
+    # 直接进 Codex 交互界面（面向不熟悉命令行的使用者）；退出后落到普通 shell 兜底。
+    # 用绝对路径，避免网页终端的 login shell 里 PATH 找不到 codex。
+    CODEX_BIN="$(command -v codex)"
     nohup ttyd -p "$TTYD_PORT" -W \
       -t "titleFixed=Codex (DeepSeek)" -t fontSize=14 \
-      -w "$WORKDIR" bash -l >/tmp/ttyd.log 2>&1 &
+      -w "$WORKDIR" bash -lc "'$CODEX_BIN'; echo; echo '[Codex 已退出] 下面是一个普通终端：'; exec bash -l" \
+      >/tmp/ttyd.log 2>&1 &
     sleep 1
     if port_busy; then
-      echo "    已启动：http://localhost:${TTYD_PORT}/"
+      echo "    已启动：http://localhost:${TTYD_PORT}/（打开即进入 Codex）"
       echo "    浏览器访问需让 Agent 对该端口执行 OpenPreview（脚本无法注册预览）"
     else
       echo "    启动失败，日志：/tmp/ttyd.log"
