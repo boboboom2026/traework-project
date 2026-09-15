@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { LLMClient, Config, HeaderUtils } from "@/lib/sdk";
 import { generateAgentMd } from "@/lib/agents/agent-md-parser";
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 
 // 获取智能体列表
 export async function GET(request: NextRequest) {
@@ -155,7 +156,7 @@ export async function GET(request: NextRequest) {
         greeting: d.greeting || "",
         userGuidance: d.user_guidance || "",
         contextCompressEnabled: d.context_compress_enabled || false,
-        modelConfig: d.model_config || { model: "doubao-seed-2-0-pro-260215", temperature: 0.7, maxTokens: 2000 },
+        modelConfig: d.model_config || { model: DEFAULT_LLM_MODEL, temperature: 0.7, maxTokens: 2000 },
         maxIterations: d.max_iterations || 10,
         channelContextEnabled: d.channel_context_enabled || false,
         channelContextLimit: d.channel_context_limit || 20,
@@ -309,7 +310,7 @@ ${toolDesc}
               const llmClient = new LLMClient(llmConfig);
               const llmResponse = await llmClient.invoke(
                 [{ role: "user", content: skillPrompt }],
-                { model: "doubao-seed-2-0-pro-260215", temperature: 0.5 }
+                { model: DEFAULT_LLM_MODEL, temperature: 0.5 }
               );
               const skillContent = llmResponse.content.trim();
 
@@ -387,7 +388,7 @@ ${toolDesc}
   "user_guidance": "一行输入框引导提示文字，例如'请输入你的需求，例如：帮我写一篇公众号推文...'，要具体可操作",
   "description": "一行简短的智能体描述（40字以内），概括该智能体的核心职责",
   "boundaries": [{"action": "示例动作", "permission": "allow"}],
-  "model_config": {"model": "doubao-seed-2-0-pro-260215", "temperature": 0.7, "max_tokens": 4096}
+  "model_config": {"model": "${DEFAULT_LLM_MODEL}", "temperature": 0.7, "max_tokens": 4096}
 }
 
 注意：
@@ -401,7 +402,7 @@ ${toolDesc}
           const llmClient = new LLMClient(llmConfig);
           const llmResponse = await llmClient.invoke(
             [{ role: "user", content: llmPrompt }],
-            { model: "doubao-seed-2-0-pro-260215", temperature: 0.5 }
+            { model: DEFAULT_LLM_MODEL, temperature: 0.5 }
           );
           const raw = llmResponse.content.trim();
           // 尝试解析 JSON（可能包含 markdown 代码块包裹）
@@ -433,7 +434,7 @@ ${toolDesc}
           autoUserGuidance = `请输入你的需求，例如：我需要...`;
           autoDescription = `专业的${positionName}，负责${positionDesc || "相关工作"}`;
           boundaries = [{ action: "发送消息", permission: "allow" }];
-          modelConfig = JSON.stringify({ model: "doubao-seed-2-0-pro-260215", temperature: 0.7, max_tokens: 4096 });
+          modelConfig = JSON.stringify({ model: DEFAULT_LLM_MODEL, temperature: 0.7, max_tokens: 4096 });
         }
       }
     }

@@ -66,14 +66,34 @@ ALTER DEFAULT PRIVILEGES FOR ROLE aiteams IN SCHEMA public GRANT ALL ON FUNCTION
 SQL
 
 # ---------------------------------------------------------------- 迁移
-HAS_USERS=$(sudo -u postgres psql -qtAd "${DB_NAME}" -c "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='users'")
-if [ "${HAS_USERS:-}" != "1" ]; then
-  log "应用 drizzle 迁移..."
+# 增量幂等：把已应用的迁移文件名记录在 _drizzle_migrations，未记录的才执行。
+# 注意：不能只用「users 表是否存在」判断，否则新增迁移在已有库上会被跳过。
+sudo -u postgres psql -q -d "${DB_NAME}" -v ON_ERROR_STOP=1 -c \
+  "CREATE TABLE IF NOT EXISTS _drizzle_migrations (tag text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now());"
+
+APPLIED=0
+for f in $(ls drizzle/*.sql | sort); do
+  tag=$(basename "${f}")
+  seen=$(sudo -u postgres psql -qtAd "${DB_NAME}" -c \
+    "SELECT 1 FROM _drizzle_migrations WHERE tag='${tag}'")
+  if [ "${seen:-}" = "1" ]; then
+    continue
+  fi
+  log "  -> 应用 ${f}"
   PGPASSWORD="${DB_PASS}" psql -q -h "${DB_HOST}" -U "${DB_USER}" -d "${DB_NAME}" \
-    -v ON_ERROR_STOP=1 -f drizzle/0000_slimy_hiroim.sql >/dev/null
+    -v ON_ERROR_STOP=1 -f "${f}" >/dev/null
+  sudo -u postgres psql -q -d "${DB_NAME}" -v ON_ERROR_STOP=1 -c \
+    "INSERT INTO _drizzle_migrations (tag) VALUES ('${tag}')"
+  APPLIED=$((APPLIED + 1))
+done
+if [ "${APPLIED}" -eq 0 ]; then
+  log "数据库迁移已是最新"
 else
-  log "数据库表已存在，跳过迁移"
+  log "本次应用了 ${APPLIED} 个迁移"
 fi
+
+# 让 PostgREST 重新加载 schema 缓存（新增列后必须，否则报 PGRST204）
+sudo -u postgres psql -q -d "${DB_NAME}" -c "NOTIFY pgrst, 'reload schema';" >/dev/null
 
 # ---------------------------------------------------------------- PostgREST
 if [ ! -x "${PGRST_DIR}/postgrest" ]; then
@@ -145,7 +165,9 @@ SUPABASE_PROXY_PORT=${PROXY_PORT}
 # ===== LLM（OpenAI 兼容，留空则 AI 能力不可用，不影响登录） =====
 LLM_API_KEY=
 LLM_BASE_URL=
+# 主力模型 / 轻量模型（留空则用内置默认，见 src/lib/llm/model-catalog.ts）
 LLM_MODEL=
+LLM_MODEL_LITE=
 
 # ===== Embedding =====
 EMBEDDING_MODEL=text-embedding-3-small

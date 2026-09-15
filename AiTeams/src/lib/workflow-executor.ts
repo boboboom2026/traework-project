@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { evaluateCondition as evaluateConditionDeterministic } from "@/lib/workflow/condition";
 
@@ -702,7 +703,7 @@ export class WorkflowExecutor {
     const config = new Config();
     const llmClient = new LLMClient(config);
 
-    const model = step.model_config?.model || step.config?.model || "doubao-seed-2-0-pro-260215";
+    const model = step.model_config?.model || step.config?.model || DEFAULT_LLM_MODEL;
     const temperature = step.model_config?.temperature ?? step.config?.temperature ?? 0.3;
 
     const response = await llmClient.invoke(

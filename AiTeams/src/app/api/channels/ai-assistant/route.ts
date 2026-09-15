@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
 
     const assistantName = (aiConfig.name as string) || ASSISTANT_NAME;
     const systemPrompt = (aiConfig.system_prompt as string) || "";
-    const modelConfig = (aiConfig.model_config as { model: string; temperature: number; maxTokens: number }) || { model: "doubao-seed-2-0-pro-260215", temperature: 0.7, maxTokens: 2000 };
+    const modelConfig = (aiConfig.model_config as { model: string; temperature: number; maxTokens: number }) || { model: DEFAULT_LLM_MODEL, temperature: 0.7, maxTokens: 2000 };
 
     // 2. 获取当前消息内容，判断是否 @了频道AI助手
     // 如果前端传了content就用，否则从数据库查
@@ -251,7 +252,7 @@ ${messageHistory}
           const result = await llmClient.invoke(
             [{ role: "system", content: replyPrompt }],
             {
-              model: modelConfig.model || "doubao-seed-2-0-pro-260215",
+              model: modelConfig.model || DEFAULT_LLM_MODEL,
               temperature: modelConfig.temperature ?? 0.7,
             }
           );

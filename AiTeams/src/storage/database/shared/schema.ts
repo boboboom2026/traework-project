@@ -11,9 +11,13 @@ export const users = pgTable(
     nickname: varchar("nickname", { length: 100 }),
     password: varchar("password", { length: 255 }),
     avatar: varchar("avatar", { length: 500 }),
+    avatar_url: varchar("avatar_url", { length: 500 }), // 兼容旧字段名（等价于 avatar）
     email: varchar("email", { length: 255 }),
     department: varchar("department", { length: 100 }),
     position: varchar("position", { length: 100 }),
+    title: varchar("title", { length: 100 }), // 兼容旧字段名（等价于 position）
+    full_name: varchar("full_name", { length: 100 }), // 兼容旧字段名
+    real_name: varchar("real_name", { length: 100 }), // 兼容旧字段名
     bio: text("bio"),
     platform_role: varchar("platform_role", { length: 20 }).default("user").notNull(),
     is_active: boolean("is_active").default(true).notNull(),
@@ -270,7 +274,7 @@ export const roleAgentConfigs = pgTable(
     channel_context_enabled: boolean("channel_context_enabled").default(false).notNull(),
     channel_context_limit: integer("channel_context_limit").default(20),
     context_compress_enabled: boolean("context_compress_enabled").default(false),
-    model_config: jsonb("model_config").default(sql`'{"model":"doubao-seed-2-0-pro-260215","temperature":0.7,"max_tokens":2000}'`),
+    model_config: jsonb("model_config").default(sql`'{"model":"gpt-4o-mini","temperature":0.7,"max_tokens":2000}'`),
     max_iterations: integer("max_iterations").default(10),
     // 第六层：主动能力
     notify_enabled: boolean("notify_enabled").default(false).notNull(),
@@ -302,6 +306,8 @@ export const tools = pgTable(
     mcp_service_id: varchar("mcp_service_id", { length: 36 }).references(() => mcpServices.id, { onDelete: "set null" }), // 关联 MCP 服务（可选）
     tool_type: varchar("tool_type", { length: 20 }).default("builtin").notNull(), // 工具类型: builtin=内置, http=自定义HTTP, mcp=MCP服务
     config: jsonb("config").default(sql`'{}'`),
+    service_id: varchar("service_id", { length: 36 }), // 兼容旧字段名（等价于 mcp_service_id）
+    is_active: boolean("is_active").default(true), // 兼容旧字段名（等价于 enabled）
     created_by: varchar("created_by", { length: 36 }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
@@ -340,6 +346,8 @@ export const teams = pgTable(
     name: varchar("name", { length: 100 }).notNull(),
     type: varchar("type", { length: 20 }).notNull().default("company"), // company: 团队, community: 社区
     logo: varchar("logo", { length: 500 }),
+    avatar_url: varchar("avatar_url", { length: 500 }), // 兼容旧字段名（等价于 logo）
+    website: varchar("website", { length: 500 }),
     color: varchar("color", { length: 20 }).default("#3B82F6"),
     industry: varchar("industry", { length: 100 }),
     owner_id: varchar("owner_id", { length: 36 }).notNull().references(() => users.id),
@@ -361,6 +369,8 @@ export const teamMembers = pgTable(
     team_id: varchar("team_id", { length: 36 }).notNull().references(() => teams.id, { onDelete: "cascade" }),
     user_id: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
     role: varchar("role", { length: 20 }).notNull().default("member"), // owner: 所有者, admin: 管理员, member: 成员
+    name: varchar("name", { length: 100 }), // 冗余字段：部分代码直接从 team_members 读取成员姓名
+    avatar: varchar("avatar", { length: 500 }), // 冗余字段：同上
     joined_at: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
     last_read_mentions_at: timestamp("last_read_mentions_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -434,6 +444,10 @@ export const skills = pgTable(
     trigger_condition: text("trigger_condition"), // 触发条件（选填，填写后可加速匹配）
     is_executable: boolean("is_executable").default(false), // 是否可作为可执行能力模块被调用
     expected_output: text("expected_output"), // 预期输出格式描述（如"JSON格式：{company, product, analysis}"），用于结构化输出
+    input_schema: jsonb("input_schema"), // 输入参数 schema
+    output_schema: jsonb("output_schema"), // 输出结果 schema
+    tags: jsonb("tags").default(sql`'[]'`),
+    status: varchar("status", { length: 20 }).default("active"), // 兼容旧字段名（等价于 is_published）
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
   },
@@ -470,7 +484,9 @@ export const groups = pgTable(
     team_id: varchar("team_id", { length: 36 }).notNull().references(() => teams.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 100 }).notNull(),
     description: text("description"),
-    creator_id: varchar("creator_id", { length: 36 }).notNull().references(() => users.id),
+    creator_id: varchar("creator_id", { length: 36 }).references(() => users.id),
+    created_by: varchar("created_by", { length: 36 }), // 兼容旧字段名（等价于 creator_id）
+    member_count: integer("member_count").default(0),
     is_active: boolean("is_active").default(true).notNull(),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
@@ -501,9 +517,11 @@ export const dmConversations = pgTable(
   "dm_conversations",
   {
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-    team_id: varchar("team_id", { length: 36 }).notNull().references(() => teams.id, { onDelete: "cascade" }),
-    participant1_id: varchar("participant1_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
-    participant2_id: varchar("participant2_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    team_id: varchar("team_id", { length: 36 }).references(() => teams.id, { onDelete: "cascade" }),
+    participant1_id: varchar("participant1_id", { length: 36 }).references(() => users.id, { onDelete: "cascade" }),
+    participant2_id: varchar("participant2_id", { length: 36 }).references(() => users.id, { onDelete: "cascade" }),
+    user1_id: varchar("user1_id", { length: 36 }), // 兼容旧字段名（等价于 participant1_id）
+    user2_id: varchar("user2_id", { length: 36 }), // 兼容旧字段名（等价于 participant2_id）
     last_message: text("last_message"),
     last_message_at: timestamp("last_message_at", { withTimezone: true }),
     is_active: boolean("is_active").default(true).notNull(),
@@ -524,6 +542,7 @@ export const dmMessages = pgTable(
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
     conversation_id: varchar("conversation_id", { length: 36 }).notNull().references(() => dmConversations.id, { onDelete: "cascade" }),
     sender_id: varchar("sender_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    sender_type: varchar("sender_type", { length: 20 }).default("user"), // user | agent
     content: text("content").notNull(),
     message_type: varchar("message_type", { length: 20 }).notNull().default("text"), // text, image, file
     forwarded_from_type: varchar("forwarded_from_type", { length: 30 }), // channel_message | dm_message | agent_message
@@ -570,7 +589,9 @@ export const channels = pgTable(
     description: text("description"),
     type: varchar("type", { length: 20 }).notNull().default("public"), // public, private
     icon: varchar("icon", { length: 10 }),
-    creator_id: varchar("creator_id", { length: 36 }).notNull().references(() => users.id),
+    creator_id: varchar("creator_id", { length: 36 }).references(() => users.id),
+    created_by: varchar("created_by", { length: 36 }), // 兼容旧字段名（等价于 creator_id）
+    is_private: boolean("is_private").default(false), // 兼容旧字段名（等价于 type === "private"）
     sort_order: integer("sort_order").default(0).notNull(),
     is_active: boolean("is_active").default(true).notNull(),
     is_default: boolean("is_default").default(false).notNull(),
@@ -595,6 +616,7 @@ export const channelMembers = pgTable(
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
     channel_id: varchar("channel_id", { length: 36 }).notNull().references(() => channels.id, { onDelete: "cascade" }),
     user_id: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 20 }).default("member"),
     joined_at: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -730,6 +752,7 @@ export const ragDatasets = pgTable(
     document_count: integer("document_count").default(0),
     sync_config: jsonb("sync_config").default(sql`'{}'`),
     status: varchar("status", { length: 20 }).notNull().default("active"),
+    enabled: boolean("enabled").default(true), // 兼容旧字段名（等价于 status === "active"）
     created_by: varchar("created_by", { length: 36 }).references(() => users.id),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
@@ -770,6 +793,8 @@ export const agentToolBindings = pgTable(
     id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
     agent_id: varchar("agent_id", { length: 36 }).notNull().references(() => agents.id, { onDelete: "cascade" }),
     tool_id: varchar("tool_id", { length: 36 }).notNull().references(() => tools.id, { onDelete: "cascade" }),
+    skill_id: varchar("skill_id", { length: 36 }), // 兼容旧字段名：部分代码用它存 tool_id
+    config: jsonb("config").default(sql`'{}'`),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -833,7 +858,7 @@ export const agents = pgTable(
     greeting: text("greeting"),
     user_guidance: text("user_guidance"),
     context_compress_enabled: boolean("context_compress_enabled").default(false),
-    model_config: jsonb("model_config").default(sql`'{"model":"doubao-seed-2-0-pro-260215","temperature":0.7,"max_tokens":2000}'`),
+    model_config: jsonb("model_config").default(sql`'{"model":"gpt-4o-mini","temperature":0.7,"max_tokens":2000}'`),
     max_iterations: integer("max_iterations").default(10),
     channel_context_enabled: boolean("channel_context_enabled").default(false).notNull(),
     channel_context_limit: integer("channel_context_limit").default(20),
@@ -844,6 +869,12 @@ export const agents = pgTable(
     workflow_id: varchar("workflow_id", { length: 36 }), // FK to agent_workflows.id - constraint exists at DB level
     role_id: varchar("role_id", { length: 36 }).references(() => roles.id, { onDelete: "set null" }),
     status: varchar("status", { length: 20 }).notNull().default("active"),
+    is_active: boolean("is_active").default(true), // 兼容旧字段名（等价于 status === "active"）
+    agent_md: text("agent_md"), // AGENT.md 完整文档
+    few_shot_examples: text("few_shot_examples"), // Few-shot 示例
+    output_format: varchar("output_format", { length: 20 }).default("auto"), // auto | json | markdown | text
+    json_schema: text("json_schema"), // output_format=json 时的 JSON Schema
+    max_tokens: integer("max_tokens").default(2000),
     created_by: varchar("created_by", { length: 36 }).references(() => users.id),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
@@ -951,6 +982,7 @@ export const positions = pgTable(
     color: varchar("color", { length: 7 }).default("#3B82F6"),
     job_works: jsonb("job_works").default([]).notNull(),
     is_active: boolean("is_active").default(true).notNull(),
+    status: varchar("status", { length: 20 }).default("active"), // 兼容旧字段名（等价于 is_active）
     created_by: varchar("created_by", { length: 36 }).references(() => users.id),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }),
@@ -1004,6 +1036,8 @@ export const agentFeedbacks = pgTable(
     tags: jsonb("tags").default(sql`'[]'`), // ['准确', '快速', '需要改进']
     comment: text("comment"),
     correction: text("correction"), // 用户修正的内容（最强信号）
+    category: varchar("category", { length: 50 }), // 反馈分类
+    content: text("content"), // 反馈正文（部分代码使用 content 而非 comment）
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -1028,6 +1062,7 @@ export const agentTrainingRecords = pgTable(
     after_state: jsonb("after_state"), // 变更后快照
     created_by: varchar("created_by", { length: 36 }).references(() => users.id),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
   },
   (table) => [
     index("agent_training_records_agent_id_idx").on(table.agent_id),
@@ -1107,7 +1142,7 @@ export const channelAiAssistantConfig = pgTable(
     team_id: varchar("team_id", { length: 36 }).notNull().primaryKey().references(() => teams.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 100 }).notNull().default("频道AI助手"),
     system_prompt: text("system_prompt"),
-    model_config: jsonb("model_config").default({ model: "doubao-seed-2-0-pro-260215", temperature: 0.7, maxTokens: 2000 }),
+    model_config: jsonb("model_config").default({ model: "gpt-4o-mini", temperature: 0.7, maxTokens: 2000 }),
     enabled: boolean("enabled").default(true).notNull(),
     greeting: varchar("greeting", { length: 500 }).default("你好！我是频道AI助手，有什么可以帮助你的？"),
     user_guidance: varchar("user_guidance", { length: 500 }).default("请输入你的需求，例如：帮我总结一下今天的讨论..."),

@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { LLMClient, Config, HeaderUtils } from "@/lib/sdk";
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
     const config = new Config();
     const llmClient = new LLMClient(config, customHeaders);
-    const model = "doubao-seed-2-0-pro-260215";
+    const model = DEFAULT_LLM_MODEL;
 
     // 4. 删除该岗位下旧的技能（之前自动生成的），保留手动创建的
     const { data: existingSkills } = await client

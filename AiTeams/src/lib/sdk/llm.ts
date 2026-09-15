@@ -9,6 +9,7 @@
 
 import OpenAI from "openai";
 import { Config } from "./config";
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 
 // ---------------------------------------------------------------------------
 // 类型定义
@@ -45,7 +46,7 @@ export interface LLMConfig {
 }
 
 export const LLMDefaults = {
-  MODEL: "gpt-4o-mini",
+  MODEL: DEFAULT_LLM_MODEL,
   THINKING: "disabled" as const,
   CACHING: "disabled" as const,
   TEMPERATURE: 0.7,
@@ -143,7 +144,7 @@ export class LLMClient {
     _extraHeaders?: Record<string, string>,
   ): Promise<LLMResponse> {
     const client = getClient(this.config);
-    const model = llmConfig?.model || process.env.LLM_MODEL || LLMDefaults.MODEL;
+    const model = llmConfig?.model || DEFAULT_LLM_MODEL;
     const temperature = llmConfig?.temperature ?? LLMDefaults.TEMPERATURE;
 
     const completion = await client.chat.completions.create({
@@ -166,7 +167,7 @@ export class LLMClient {
     _extraHeaders?: Record<string, string>,
   ): AsyncGenerator<{ content: string }, void, unknown> {
     const client = getClient(this.config);
-    const model = llmConfig?.model || process.env.LLM_MODEL || LLMDefaults.MODEL;
+    const model = llmConfig?.model || DEFAULT_LLM_MODEL;
     const temperature = llmConfig?.temperature ?? LLMDefaults.TEMPERATURE;
 
     const stream = await client.chat.completions.create({

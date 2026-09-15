@@ -1,3 +1,4 @@
+import { LITE_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest, NextResponse } from "next/server";
 import { LLMClient, Config, HeaderUtils } from "@/lib/sdk";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
@@ -114,7 +115,7 @@ ${messageText}`;
         { role: "user", content: userPrompt },
       ],
       {
-        model: "doubao-seed-2-0-lite-260215",
+        model: LITE_LLM_MODEL,
         temperature: 0.3,
       }
     );

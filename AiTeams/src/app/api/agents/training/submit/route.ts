@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { LLMClient, Config, HeaderUtils } from "@/lib/sdk";
@@ -106,7 +107,7 @@ ${fileSummary ? `\n## 附件\n${fileSummary}` : ""}
 
     const response = await llmClient.invoke(
       [{ role: "user", content: analysisPrompt }],
-      { model: "doubao-seed-1-8-251228", temperature: 0.3 },
+      { model: DEFAULT_LLM_MODEL, temperature: 0.3 },
     );
 
     // 6. 解析 LLM 响应

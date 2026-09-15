@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     const config = configData?.content || {
-      llm: { defaultModel: "doubao-seed-2-0-pro-260215", defaultTemperature: 0.7, defaultMaxTokens: 2000 },
+      llm: { defaultModel: DEFAULT_LLM_MODEL, defaultTemperature: 0.7, defaultMaxTokens: 2000 },
       storage: { maxFileSize: 50 * 1024 * 1024, allowedTypes: ["image/*", "video/*", "application/pdf"] },
       invite: { linkExpiryHours: 72, requireApproval: false },
       security: { maxLoginAttempts: 5, sessionTimeoutMinutes: 43200 },

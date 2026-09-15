@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { calculateNextRun } from "@/app/api/agents/schedules/cron-utils";
 import { logAgentTask } from "@/lib/agent-task-logger";
@@ -331,7 +332,7 @@ export async function executeScheduledTask(schedule: any) {
       typeof agent.model_config === "string"
         ? JSON.parse(agent.model_config || "{}")
         : agent.model_config || {};
-    const model = schedule.model_override || modelConfig.model || "doubao-seed-2-0-pro-260215";
+    const model = schedule.model_override || modelConfig.model || DEFAULT_LLM_MODEL;
     const temperature = modelConfig.temperature ?? 0.7;
 
     const maxIterations = 10;

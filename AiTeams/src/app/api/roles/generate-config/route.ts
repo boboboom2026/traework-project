@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LLMClient, Config, HeaderUtils } from "@/lib/sdk";
+import { DEFAULT_LLM_MODEL, LITE_LLM_MODEL } from "@/lib/llm/models";
 
 // POST /api/roles/generate-config - AI 根据岗位职责自动生成 Hermes 6层配置
 export async function POST(request: NextRequest) {
@@ -37,7 +38,7 @@ ${responsibilities || "无"}
   "channel_context_enabled": true,
   "channel_context_limit": 20,
   "context_compress_enabled": false,
-  "model_config": { "model": "doubao-seed-2-0-pro-260215", "temperature": 0.7, "max_tokens": 2000 },
+  "model_config": { "model": "${DEFAULT_LLM_MODEL}", "temperature": 0.7, "max_tokens": 2000 },
   "max_iterations": 10,
   "notify_enabled": false,
   "notify_config": {}
@@ -62,7 +63,7 @@ ${responsibilities || "无"}
     ];
 
     const response = await client.invoke(messages, {
-      model: "doubao-seed-2-0-lite-260215",
+      model: LITE_LLM_MODEL,
       temperature: 0.3,
     });
 
@@ -97,7 +98,7 @@ ${responsibilities || "无"}
       channel_context_enabled: generatedConfig.channel_context_enabled ?? true,
       channel_context_limit: generatedConfig.channel_context_limit || 20,
       context_compress_enabled: generatedConfig.context_compress_enabled ?? false,
-      model_config: generatedConfig.model_config || { model: "doubao-seed-2-0-pro-260215", temperature: 0.7, max_tokens: 2000 },
+      model_config: generatedConfig.model_config || { model: DEFAULT_LLM_MODEL, temperature: 0.7, max_tokens: 2000 },
       max_iterations: generatedConfig.max_iterations || 10,
       notify_enabled: generatedConfig.notify_enabled ?? false,
       notify_config: generatedConfig.notify_config || {},

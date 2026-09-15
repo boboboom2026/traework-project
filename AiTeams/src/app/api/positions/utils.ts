@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { LLMClient, Config } from "@/lib/sdk";
 
@@ -63,7 +64,7 @@ ${skillsText}
     ];
 
     const response = await client.invoke(messages, {
-      model: "doubao-seed-2-0-pro-260215",
+      model: DEFAULT_LLM_MODEL,
       temperature: 0.3,
     });
 

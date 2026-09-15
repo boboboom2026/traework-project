@@ -8,6 +8,20 @@
       "when": 1786902197940,
       "tag": "0000_slimy_hiroim",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789480809274,
+      "tag": "0001_fancy_lady_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789481909568,
+      "tag": "0002_reconcile_schema_with_app_code",
+      "breakpoints": true
     }
   ]
 }

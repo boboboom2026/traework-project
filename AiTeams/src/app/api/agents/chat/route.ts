@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { HeaderUtils, type ContentPart } from "@/lib/sdk";
@@ -328,7 +329,7 @@ ${stepsDesc || "  无详细步骤"}
       try {
         for await (const ev of streamChat({
           messages: llmMessages as unknown as NativeMessage[],
-          model: "doubao-seed-2-0-pro-260215",
+          model: DEFAULT_LLM_MODEL,
           temperature: 0.7,
           tools: nativeTools.length > 0 ? nativeTools : undefined,
         })) {

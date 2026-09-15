@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { streamChat, toNativeTools, type NativeMessage, type NativeToolCall } from "@/lib/llm/native-client";
 
@@ -119,7 +120,7 @@ export async function triggerAiAssistant(channelId: string, messageContent?: str
 
     const assistantName = (aiConfig.name as string) || ASSISTANT_NAME;
     const systemPrompt = (aiConfig.system_prompt as string) || "";
-    const modelConfig = (aiConfig.model_config as { model: string; temperature: number; maxTokens: number }) || { model: "doubao-seed-2-0-pro-260215", temperature: 0.7, maxTokens: 2000 };
+    const modelConfig = (aiConfig.model_config as { model: string; temperature: number; maxTokens: number }) || { model: DEFAULT_LLM_MODEL, temperature: 0.7, maxTokens: 2000 };
 
     // 3. 获取最新消息，判断是否 @了频道AI助手
     if (!messageContent) {
@@ -225,7 +226,7 @@ ${channelName ? `频道名称：${channelName}\n` : ""}${messageContext}
 当你输出结构化的知识文档（报告、方案、评估、教程、分析等）时，请使用 Markdown 格式，第一行用 # 或 ## 标题开头，正文使用 Markdown 语法组织。普通对话回复不需要此结构。`;
 
     // 8. 调用 LLM 生成回复（原生 function calling 工具循环）
-    const model = modelConfig.model || "doubao-seed-2-0-pro-260215";
+    const model = modelConfig.model || DEFAULT_LLM_MODEL;
     const temperature = modelConfig.temperature ?? 0.7;
 
     const nativeTools = toNativeTools(builtinTools);

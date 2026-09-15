@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
 - 其他频道协作相关的帮助`,
           greeting: "你好！我是频道AI助手，有什么可以帮助你的？",
           userGuidance: "请输入你的需求，例如：帮我总结一下今天的讨论...",
-          modelConfig: { model: "doubao-seed-2-0-pro-260215", temperature: 0.7, maxTokens: 2000 },
+          modelConfig: { model: DEFAULT_LLM_MODEL, temperature: 0.7, maxTokens: 2000 },
           enabled: true,
         },
       });
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
         systemPrompt: d.system_prompt || "",
         greeting: d.greeting || "",
         userGuidance: d.user_guidance || "",
-        modelConfig: d.model_config || { model: "doubao-seed-2-0-pro-260215", temperature: 0.7, maxTokens: 2000 },
+        modelConfig: d.model_config || { model: DEFAULT_LLM_MODEL, temperature: 0.7, maxTokens: 2000 },
         enabled: d.enabled ?? true,
       },
     });

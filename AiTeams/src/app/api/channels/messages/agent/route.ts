@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { buildChannelContext, generateMessageEmbedding } from "@/lib/agent-context";
@@ -347,7 +348,7 @@ export async function POST(request: NextRequest) {
 
     // 模型配置
     const modelConfig = (agent.model_config as { model?: string; temperature?: number; max_tokens?: number }) || {};
-    const selectedModel = modelConfig.model || "doubao-seed-2-0-pro-260215";
+    const selectedModel = modelConfig.model || DEFAULT_LLM_MODEL;
     const selectedTemperature = modelConfig.temperature ?? 0.7;
     const maxIterations = (agent.max_iterations as number) || 3;
 

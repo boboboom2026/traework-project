@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { chatOnce, streamChat } from "@/lib/llm/native-client";
 import { runAgentTool, type ToolRunContext } from "@/lib/agents/agent-tool-runner";
@@ -61,7 +62,7 @@ export function createNodeExecutor(deps: NodeExecutorDeps): NodeExecutor {
         }
         const streamParams = {
           messages: [{ role: "user" as const, content: prompt }],
-          model: node.model_config?.model ?? "doubao-seed-2-0-pro-260215",
+          model: node.model_config?.model ?? DEFAULT_LLM_MODEL,
           temperature: node.model_config?.temperature,
         };
 

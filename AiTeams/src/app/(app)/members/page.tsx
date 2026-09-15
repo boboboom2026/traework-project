@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { DEFAULT_MODEL_ID, MODEL_CATALOG } from "@/lib/llm/model-catalog";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -374,7 +375,7 @@ function EditAgentDialog({
 
   // 高级配置
   const [modelConfig, setModelConfig] = useState<{ model: string; temperature: number; maxTokens: number }>({
-    model: "doubao-seed-2-0-pro-260215",
+    model: DEFAULT_MODEL_ID,
     temperature: 0.7,
     maxTokens: 2000,
   });
@@ -409,7 +410,7 @@ function EditAgentDialog({
 
       // 加载高级配置
       setModelConfig((agent.modelConfig as { model: string; temperature: number; maxTokens: number }) || {
-        model: "doubao-seed-2-0-pro-260215", temperature: 0.7, maxTokens: 2000,
+        model: DEFAULT_MODEL_ID, temperature: 0.7, maxTokens: 2000,
       });
       setMemoryEnabled(agent.memoryEnabled || false);
       setMemoryRecallCount((agent.memoryConfig as { recallCount?: number })?.recallCount || 5);
@@ -723,12 +724,9 @@ function EditAgentDialog({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="doubao-seed-2-0-pro-260215">Seed 2.0 Pro</SelectItem>
-                        <SelectItem value="doubao-seed-2-0-lite-260215">Seed 2.0 Lite</SelectItem>
-                        <SelectItem value="doubao-seed-2-0-mini-260215">Seed 2.0 Mini</SelectItem>
-                        <SelectItem value="kimi-k2-5-260127">Kimi K2.5</SelectItem>
-                        <SelectItem value="qwen-3-5-plus-260215">Qwen 3.5 Plus</SelectItem>
-                        <SelectItem value="minimax-m2-5-260212">MiniMax M2.5</SelectItem>
+                        {MODEL_CATALOG.map(m => (
+                          <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

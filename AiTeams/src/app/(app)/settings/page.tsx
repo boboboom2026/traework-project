@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { DEFAULT_MODEL_ID, MODEL_CATALOG } from "@/lib/llm/model-catalog";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -2688,7 +2689,7 @@ function AiAssistantSettings({ teamId }: { teamId: string }) {
   const [systemPrompt, setSystemPrompt] = useState("");
   const [greeting, setGreeting] = useState("");
   const [userGuidance, setUserGuidance] = useState("");
-  const [model, setModel] = useState("doubao-seed-2-0-pro-260215");
+  const [model, setModel] = useState(DEFAULT_MODEL_ID);
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(2000);
   const [loading, setLoading] = useState(false);
@@ -2813,12 +2814,9 @@ function AiAssistantSettings({ teamId }: { teamId: string }) {
                   <SelectValue placeholder="选择模型" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="doubao-seed-2-0-pro-260215">Doubao Seed 2.0 Pro</SelectItem>
-                  <SelectItem value="doubao-seed-2-0-lite-260215">Doubao Seed 2.0 Lite</SelectItem>
-                  <SelectItem value="doubao-seed-2-0-mini-260215">Doubao Seed 2.0 Mini</SelectItem>
-                  <SelectItem value="kimi-k2-5-260127">Kimi K2.5</SelectItem>
-                  <SelectItem value="qwen-3-5-plus-260215">Qwen 3.5 Plus</SelectItem>
-                  <SelectItem value="minimax-m2-5-260212">MiniMax M2.5</SelectItem>
+                  {MODEL_CATALOG.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </SelectComponent>
             </div>

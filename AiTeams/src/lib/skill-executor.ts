@@ -9,6 +9,7 @@
  */
 
 // LLMClient used via dynamic import
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 
 /** Skill 定义 */
@@ -186,7 +187,7 @@ ${content}
       const llm = await this.getLLM();
       const response = await llm.invoke(
         [{ role: "user", content: parsePrompt }],
-        { model: "doubao-seed-2-0-pro-260215", temperature: 0.3 }
+        { model: DEFAULT_LLM_MODEL, temperature: 0.3 }
       );
       const responseText = response.content || "";
 
@@ -237,7 +238,7 @@ ${this.context.user_input}
         { role: "system", content: `你是「${this.skill.name}」技能的执行引擎。请严格按照 SOP 步骤执行任务。` },
         { role: "user", content: stepPrompt },
       ],
-      { model: "doubao-seed-2-0-pro-260215", temperature: 0.5 }
+      { model: DEFAULT_LLM_MODEL, temperature: 0.5 }
     );
     return response.content || "";
   }
@@ -253,7 +254,7 @@ ${this.context.user_input}
         { role: "system", content: `你是「${this.skill.name}」技能。请严格按照以下 SOP 执行任务。\n\n${sopContent}` },
         { role: "user", content: userInput },
       ],
-      { model: "doubao-seed-2-0-pro-260215", temperature: 0.4 }
+      { model: DEFAULT_LLM_MODEL, temperature: 0.4 }
     );
 
     return { result: response.content || "" };
@@ -299,7 +300,7 @@ ${stepResults}
           { role: "system", content: `你是「${this.skill.name}」技能。输出要专业、结构化、面向用户。` },
           { role: "user", content: summaryPrompt },
         ],
-        { model: "doubao-seed-2-0-pro-260215", temperature: 0.3 }
+        { model: DEFAULT_LLM_MODEL, temperature: 0.3 }
       );
       return response.content || "技能执行完成，但未生成有效输出。";
     } catch (error) {
@@ -367,7 +368,7 @@ ${skillList}
     const llmClient2 = new LLMClient2(new Config2());
     const resp = await llmClient2.invoke(
       [{ role: "user", content: judgePrompt }],
-      { model: "doubao-seed-2-0-pro-260215", temperature: 0 }
+      { model: DEFAULT_LLM_MODEL, temperature: 0 }
     );
     const response = resp.content?.trim() || "";
     const matchNum = response.match(/^(\d+)/);
@@ -570,7 +571,7 @@ export async function delegateTaskToAgent(
     const llmClient = new LLMClient(new Config());
 
     const modelConfig = agent.model_config as any || {};
-    const model = modelConfig.model || "doubao-seed-2-0-pro-260215";
+    const model = modelConfig.model || DEFAULT_LLM_MODEL;
     const temperature = modelConfig.temperature ?? 0.7;
 
     const response = await llmClient.invoke(messages, { model, temperature });

@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { LLMClient, Config, HeaderUtils } from "@/lib/sdk";
@@ -137,7 +138,7 @@ ${ragDatasets?.map(r => `- ${r.name}: ${r.description || "无描述"} (${r.docum
     ];
 
     const response = await client.invoke(messages, {
-      model: "doubao-seed-2-0-pro-260215",
+      model: DEFAULT_LLM_MODEL,
       temperature: 0.3,
     });
 

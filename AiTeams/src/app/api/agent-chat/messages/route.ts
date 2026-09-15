@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 import { HeaderUtils, type ContentPart } from "@/lib/sdk";
@@ -391,7 +392,7 @@ export async function POST(request: NextRequest) {
     }
 
     const mc = (agent.model_config as any) || {};
-    const selectedModel = mc.model || "doubao-seed-2-0-pro-260215";
+    const selectedModel = mc.model || DEFAULT_LLM_MODEL;
     const selectedTemperature = mc.temperature ?? 0.7;
     llmMessages.push(...chatMessages);
 

@@ -1,3 +1,4 @@
+import { LITE_LLM_MODEL } from "@/lib/llm/models";
 import { NextRequest, NextResponse } from "next/server";
 import { LLMClient, Config, HeaderUtils } from "@/lib/sdk";
 
@@ -84,7 +85,7 @@ description: "技能简短描述"
     ];
 
     const response = await client.invoke(messages, {
-      model: "doubao-seed-2-0-lite-260215",
+      model: LITE_LLM_MODEL,
       temperature: 0.7,
     });
 
