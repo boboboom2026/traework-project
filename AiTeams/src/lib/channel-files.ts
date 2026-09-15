@@ -2,13 +2,13 @@
 // 提供频道文件的录入与删除能力，供 /api/channels/files、消息发送、智能体回复复用。
 
 import { getSupabaseClient } from "@/storage/database/supabase-client";
-import { S3Storage } from "@/lib/coze-compat";
+import { S3Storage } from "@/lib/sdk";
 
 const storage = new S3Storage({
-  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
+  endpointUrl: process.env.S3_ENDPOINT_URL,
   accessKey: "",
   secretKey: "",
-  bucketName: process.env.COZE_BUCKET_NAME,
+  bucketName: process.env.S3_BUCKET_NAME,
   region: "cn-beijing",
 });
 

@@ -405,7 +405,7 @@ export async function executeScheduledTask(schedule: any) {
 
         if (funcName === "web_search") {
           try {
-            const { SearchClient, Config: SearchConfig } = await import("coze-coding-dev-sdk");
+            const { SearchClient, Config: SearchConfig } = await import("@/lib/sdk");
             const searchConfig = new SearchConfig();
             const searchClient = new SearchClient(searchConfig);
             const query = funcArgs.query || "";

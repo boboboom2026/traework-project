@@ -1,10 +1,9 @@
 /**
- * S3 存储客户端（本地兼容层）
+ * S3 存储客户端
  *
- * 替代 coze-coding-dev-sdk 的 S3Storage，基于 @aws-sdk/client-s3 实现，
- * 兼容 S3 协议（AWS S3 / MinIO / 其它兼容服务）。
+ * 基于 @aws-sdk/client-s3 实现，兼容 S3 协议（AWS S3 / MinIO / 其它兼容服务）。
  *
- * 环境变量（无 COZE 前缀）：
+ * 环境变量：
  *   S3_ENDPOINT_URL   可选，自定义 endpoint（MinIO 等）
  *   S3_ACCESS_KEY     必填
  *   S3_SECRET_KEY     必填
@@ -70,7 +69,7 @@ export class S3Storage {
   private secretKey: string;
   private bucketName: string;
   private region: string;
-  private client: S3Client;
+  private client: S3Client | null = null;
 
   constructor(config?: S3StorageConfig) {
     this.endpointUrl = config?.endpointUrl || process.env.S3_ENDPOINT_URL || undefined;
@@ -78,6 +77,14 @@ export class S3Storage {
     this.secretKey = config?.secretKey || process.env.S3_SECRET_KEY || "";
     this.bucketName = config?.bucketName || process.env.S3_BUCKET_NAME || "";
     this.region = config?.region || process.env.S3_REGION || S3Config.DEFAULT_REGION;
+  }
+
+  /**
+   * 惰性创建客户端：未配置对象存储时不影响模块加载，
+   * 仅在真正执行文件操作时抛错。
+   */
+  private getClient(): S3Client {
+    if (this.client) return this.client;
 
     if (!this.accessKey || !this.secretKey || !this.bucketName) {
       throw new Error(
@@ -93,6 +100,7 @@ export class S3Storage {
       },
       ...(this.endpointUrl ? { endpoint: this.endpointUrl, forcePathStyle: true } : {}),
     });
+    return this.client;
   }
 
   private resolveBucket(bucket?: string): string {
@@ -106,7 +114,7 @@ export class S3Storage {
     bucket?: string;
   }): Promise<string> {
     const key = generateObjectKey(options.fileName);
-    await this.client.send(
+    await this.getClient().send(
       new PutObjectCommand({
         Bucket: this.resolveBucket(options.bucket),
         Key: key,
@@ -118,7 +126,7 @@ export class S3Storage {
   }
 
   async readFile(options: { fileKey: string; bucket?: string }): Promise<Buffer> {
-    const res = await this.client.send(
+    const res = await this.getClient().send(
       new GetObjectCommand({
         Bucket: this.resolveBucket(options.bucket),
         Key: options.fileKey,
@@ -134,7 +142,7 @@ export class S3Storage {
   }
 
   async deleteFile(options: { fileKey: string; bucket?: string }): Promise<boolean> {
-    await this.client.send(
+    await this.getClient().send(
       new DeleteObjectCommand({
         Bucket: this.resolveBucket(options.bucket),
         Key: options.fileKey,
@@ -145,7 +153,7 @@ export class S3Storage {
 
   async fileExists(options: { fileKey: string; bucket?: string }): Promise<boolean> {
     try {
-      await this.client.send(
+      await this.getClient().send(
         new HeadObjectCommand({
           Bucket: this.resolveBucket(options.bucket),
           Key: options.fileKey,
@@ -163,7 +171,7 @@ export class S3Storage {
     maxKeys?: number;
     continuationToken?: string;
   }): Promise<ListFilesResult> {
-    const res = await this.client.send(
+    const res = await this.getClient().send(
       new ListObjectsV2Command({
         Bucket: this.resolveBucket(options?.bucket),
         Prefix: options?.prefix,
@@ -187,7 +195,7 @@ export class S3Storage {
       Bucket: this.resolveBucket(options.bucket),
       Key: options.key,
     });
-    return getSignedUrl(this.client, command, {
+    return getSignedUrl(this.getClient(), command, {
       expiresIn: options.expireTime || S3Config.DEFAULT_PRESIGNED_EXPIRE_TIME,
     });
   }

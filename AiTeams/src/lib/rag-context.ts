@@ -9,7 +9,7 @@
  */
 
 import { getSupabaseClient } from "@/storage/database/supabase-client";
-import { EmbeddingClient, FetchClient, S3Storage, type ContentPart } from "@/lib/coze-compat";
+import { EmbeddingClient, FetchClient, S3Storage, type ContentPart } from "@/lib/sdk";
 
 // ============ 常量 ============
 
@@ -143,10 +143,10 @@ export async function parseDocumentFromFile(
   customHeaders?: Record<string, string>
 ): Promise<string> {
   const storage = new S3Storage({
-    endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
+    endpointUrl: process.env.S3_ENDPOINT_URL,
     accessKey: "",
     secretKey: "",
-    bucketName: process.env.COZE_BUCKET_NAME,
+    bucketName: process.env.S3_BUCKET_NAME,
     region: "cn-beijing",
   });
 
@@ -189,12 +189,12 @@ export function parseTextContent(content: string): string {
  * 适用于 TXT、MD、CSV 等纯文本格式
  */
 export async function parseTextFileFromS3(fileKey: string): Promise<string> {
-  const { S3Storage } = await import("@/lib/coze-compat");
+  const { S3Storage } = await import("@/lib/sdk");
   const storage = new S3Storage({
-    endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
+    endpointUrl: process.env.S3_ENDPOINT_URL,
     accessKey: "",
     secretKey: "",
-    bucketName: process.env.COZE_BUCKET_NAME,
+    bucketName: process.env.S3_BUCKET_NAME,
     region: "cn-beijing",
   });
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { LLMClient, Config, HeaderUtils } from "@/lib/coze-compat";
+import { LLMClient, Config, HeaderUtils } from "@/lib/sdk";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 
 // POST /api/channels/summary - 生成频道消息摘要

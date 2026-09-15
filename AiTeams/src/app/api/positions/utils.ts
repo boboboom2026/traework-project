@@ -1,5 +1,5 @@
 import { getSupabaseClient } from "@/storage/database/supabase-client";
-import { LLMClient, Config } from "coze-coding-dev-sdk";
+import { LLMClient, Config } from "@/lib/sdk";
 
 /**
  * 使用 AI 智能生成优化后的 system_prompt

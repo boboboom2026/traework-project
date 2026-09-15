@@ -3,7 +3,7 @@ import { parse } from 'url';
 import next from 'next';
 import { startScheduler } from './lib/scheduler-service';
 
-const dev = process.env.COZE_PROJECT_ENV !== 'PROD';
+const dev = process.env.APP_ENV !== 'PROD';
 const hostname = process.env.HOSTNAME || 'localhost';
 const port = parseInt(process.env.PORT || '5000', 10);
 
@@ -29,7 +29,7 @@ app.prepare().then(() => {
   server.listen(port, () => {
     console.log(
       `> Server listening at http://${hostname}:${port} as ${
-        dev ? 'development' : process.env.COZE_PROJECT_ENV
+        dev ? 'development' : process.env.APP_ENV
       }`,
     );
     // 启动自动化任务调度器

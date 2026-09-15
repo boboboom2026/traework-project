@@ -1,7 +1,7 @@
 /**
- * 网络搜索客户端（本地兼容层）
+ * 网络搜索客户端
  *
- * 替代 coze-coding-dev-sdk 的 SearchClient，通过通用搜索服务（Serper.dev 协议）实现。
+ * 通过通用搜索服务（Serper.dev 协议）实现。
  *
  * 环境变量：
  *   SEARCH_API_KEY   必填（未配置时调用会抛出明确错误）

@@ -1,18 +1,14 @@
 /**
  * 原生 LLM 客户端（OpenAI 兼容协议）
  *
- * 背景：
- *   coze-coding-dev-sdk 的 LLMClient 是一层受限封装——它不支持原生 function calling
- *   （无 tools 参数、无 role:"tool" 消息、convertMessages 遇到 tool role 直接抛错）。
- *   因此我们把"工具调用"从 prompt 文本标签协议（<tool_call>...</tool_call>）
- *   迁移到 OpenAI 原生协议。
+ * 说明：
+ *   直接基于 openai SDK 调用 OpenAI 兼容网关，支持原生 function calling
+ *   （tools 参数、role:"tool" 消息回传），不再依赖 prompt 文本标签协议。
  *
- * 关键事实（实测验证）：
- *   1. 底层网关即为 OpenAI 兼容协议：baseURL = COZE_INTEGRATION_MODEL_BASE_URL
- *      apiKey = COZE_WORKLOAD_IDENTITY_API_KEY
- *   2. 网关会强制返回 SSE 流（即使不传 stream:true），所以本客户端始终使用 stream 模式
- *   3. tool_calls 以分片（delta）到达，需要按 index 累积拼接 arguments
- *   4. 思维链在非标准字段 reasoning_content 中返回
+ * 关键事实：
+ *   1. 底层网关为 OpenAI 兼容协议：baseURL = LLM_BASE_URL，apiKey = LLM_API_KEY
+ *   2. tool_calls 以分片（delta）到达，需要按 index 累积拼接 arguments
+ *   3. 思维链可能在非标准字段 reasoning_content 中返回
  */
 
 import OpenAI from "openai";
@@ -92,14 +88,16 @@ let _client: OpenAI | null = null;
 
 function getClient(): OpenAI {
   if (!_client) {
-    const apiKey = process.env.COZE_WORKLOAD_IDENTITY_API_KEY;
-    const baseURL = process.env.COZE_INTEGRATION_MODEL_BASE_URL;
-    if (!apiKey || !baseURL) {
-      throw new Error(
-        "缺少 LLM 环境变量：COZE_WORKLOAD_IDENTITY_API_KEY / COZE_INTEGRATION_MODEL_BASE_URL"
-      );
+    const apiKey = process.env.LLM_API_KEY;
+    const baseURL = process.env.LLM_BASE_URL;
+    if (!apiKey) {
+      throw new Error("缺少 LLM 环境变量：LLM_API_KEY（OpenAI 兼容服务 API Key）");
     }
-    _client = new OpenAI({ apiKey, baseURL, maxRetries: 2 });
+    _client = new OpenAI({
+      apiKey,
+      ...(baseURL ? { baseURL } : {}),
+      maxRetries: 2,
+    });
   }
   return _client;
 }

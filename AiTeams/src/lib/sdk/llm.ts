@@ -1,7 +1,7 @@
 /**
- * LLM 客户端（本地兼容层）
+ * LLM 客户端
  *
- * 替代 coze-coding-dev-sdk 的 LLMClient，基于 openai SDK 实现 OpenAI 兼容协议：
+ * 基于 openai SDK 实现 OpenAI 兼容协议：
  *   - invoke(messages, llmConfig)  -> { content }
  *   - stream(messages, llmConfig)  -> AsyncGenerator（content 增量）
  * 支持多模态消息（text / image_url / video_url）。
@@ -11,7 +11,7 @@ import OpenAI from "openai";
 import { Config } from "./config";
 
 // ---------------------------------------------------------------------------
-// 类型定义（与 coze-coding-dev-sdk 保持一致）
+// 类型定义
 // ---------------------------------------------------------------------------
 
 export interface ContentPart {
@@ -109,10 +109,18 @@ function convertContent(
 function convertMessages(
   messages: Message[],
 ): OpenAI.Chat.ChatCompletionMessageParam[] {
-  return messages.map((m) => ({
-    role: m.role,
-    content: convertContent(m.content),
-  }));
+  return messages.map((m): OpenAI.Chat.ChatCompletionMessageParam => {
+    // system / assistant 消息仅接受纯文本内容
+    if (m.role === "assistant" || m.role === "system") {
+      const text =
+        typeof m.content === "string"
+          ? m.content
+          : m.content.map((p) => p.text ?? "").join("");
+      return { role: m.role, content: text };
+    }
+    // user 消息支持多模态内容
+    return { role: "user", content: convertContent(m.content) };
+  });
 }
 
 // ---------------------------------------------------------------------------

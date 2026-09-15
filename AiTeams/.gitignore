@@ -97,9 +97,6 @@ Desktop.ini
 .vercel
 .turbo
 
-.coze-logs
-.cozeproj/reduction
-
 # Preview files
 .preview
 .codegraph

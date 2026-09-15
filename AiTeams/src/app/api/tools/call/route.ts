@@ -297,7 +297,7 @@ const TOOL_HANDLERS: Record<string, (args: Record<string, unknown>, context: { u
       throw new Error("缺少图片描述（prompt）");
     }
 
-    const { ImageGenerationClient, Config } = await import("coze-coding-dev-sdk");
+    const { ImageGenerationClient, Config } = await import("@/lib/sdk");
     const config = new Config();
     const imgClient = new ImageGenerationClient(config);
     const response = await imgClient.generate({ prompt: prompt as string });
@@ -324,7 +324,7 @@ const TOOL_HANDLERS: Record<string, (args: Record<string, unknown>, context: { u
       throw new Error("缺少搜索关键词（query）");
     }
 
-    const { SearchClient, Config } = await import("coze-coding-dev-sdk");
+    const { SearchClient, Config } = await import("@/lib/sdk");
     const config = new Config();
     const searchClient = new SearchClient(config);
 

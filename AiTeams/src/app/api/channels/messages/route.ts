@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
-import { S3Storage, HeaderUtils } from "@/lib/coze-compat";
+import { S3Storage, HeaderUtils } from "@/lib/sdk";
 import { batchGenerateSignedUrls } from "@/storage/database/shared/signed-url-cache";
 import { generateMessageEmbedding } from "@/lib/agent-context";
 import { triggerAiAssistant } from "@/lib/ai-assistant-service";
 import { recordChannelFiles } from "@/lib/channel-files";
 
 const storage = new S3Storage({
-  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
+  endpointUrl: process.env.S3_ENDPOINT_URL,
   accessKey: "",
   secretKey: "",
-  bucketName: process.env.COZE_BUCKET_NAME,
+  bucketName: process.env.S3_BUCKET_NAME,
   region: "cn-beijing",
 });
 

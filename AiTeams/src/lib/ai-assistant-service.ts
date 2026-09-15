@@ -32,7 +32,7 @@ async function getCurrentTime(): Promise<string> {
 
 /** web_search 实现 */
 async function webSearch(query: string, count: number, timeRange?: string): Promise<string> {
-  const { SearchClient, Config } = await import("coze-coding-dev-sdk");
+  const { SearchClient, Config } = await import("@/lib/sdk");
   const config = new Config();
   const searchClient = new SearchClient(config);
   let response;

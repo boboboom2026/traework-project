@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { LLMClient, Config, HeaderUtils } from "coze-coding-dev-sdk";
+import { LLMClient, Config, HeaderUtils } from "@/lib/sdk";
 
 // POST /api/skills/generate - AI 生成技能（Markdown 格式）
 export async function POST(request: NextRequest) {

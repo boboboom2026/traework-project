@@ -1,7 +1,7 @@
 /**
- * 图片生成客户端（本地兼容层）
+ * 图片生成客户端
  *
- * 替代 coze-coding-dev-sdk 的 ImageGenerationClient，基于 openai images API 实现。
+ * 基于 openai images API 实现。
  *
  * 环境变量：
  *   IMAGE_MODEL  可选，默认 gpt-image-1
@@ -104,7 +104,7 @@ export class ImageGenerationClient {
       model,
       prompt: request.prompt,
       n: 1,
-      size: (request.size || DEFAULT_SIZE) as OpenAI.Image.GenerateImageRequestParam["size"],
+      size: (request.size || DEFAULT_SIZE) as OpenAI.Images.ImageGenerateParams["size"],
       response_format: request.responseFormat || "url",
     });
 

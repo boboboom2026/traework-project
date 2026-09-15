@@ -239,7 +239,7 @@ ${messageHistory}
 请直接输出你的回复内容，不要输出JSON或其他格式。`;
 
     // 7. 调用LLM生成回复
-    const { LLMClient, Config } = await import("@/lib/coze-compat");
+    const { LLMClient, Config } = await import("@/lib/sdk");
     const llmConfig = new Config();
     const llmClient = new LLMClient(llmConfig);
 

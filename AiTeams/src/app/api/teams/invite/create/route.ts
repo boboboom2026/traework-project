@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 生成邀请链接
-    const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || "http://localhost:5000";
+    const baseUrl = process.env.APP_BASE_URL || "http://localhost:5000";
     const inviteUrl = `${baseUrl}/invite/${inviteCode}`;
 
     return NextResponse.json({

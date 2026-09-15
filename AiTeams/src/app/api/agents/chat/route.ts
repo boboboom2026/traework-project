@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
-import { HeaderUtils, type ContentPart } from "coze-coding-dev-sdk";
+import { HeaderUtils, type ContentPart } from "@/lib/sdk";
 import { buildChannelContext } from "@/lib/agent-context";
 import { buildRagContext } from "@/lib/rag-context";
 import { formatSkillsForContext, getAgentSkills } from "@/lib/agents/skill-loader";

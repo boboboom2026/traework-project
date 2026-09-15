@@ -1,21 +1,14 @@
 /**
- * 请求头工具（本地兼容层）
+ * 请求头工具
  *
- * 替代 coze-coding-dev-sdk 的 HeaderUtils。Coze 专用转发头在本地无意义，
- * extractForwardHeaders 保留白名单提取逻辑（本地通常返回空对象）。
+ * extractForwardHeaders 按白名单提取需要透传到下游服务的请求头。
  */
 
 export const FORWARD_HEADER_KEYS = [
-  "x-tt-logid",
-  "x-tt-env",
-  "x-use-ppe",
-  "x-tt-env-fe",
-  "x-run-mode",
-  "rpc-persist-res-rec-biz-scene",
-  "rpc-persist-coze-record-root-id",
-  "rpc-persist-res-rec-root-entity-type",
-  "rpc-persist-res-rec-root-entity-id",
-  "rpc-persist-res-rec-ext-info",
+  "x-request-id",
+  "x-trace-id",
+  "x-correlation-id",
+  "traceparent",
 ] as const;
 
 export type ForwardHeaderKey = (typeof FORWARD_HEADER_KEYS)[number];

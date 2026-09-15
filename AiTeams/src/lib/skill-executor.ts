@@ -68,8 +68,8 @@ export class SkillExecutor {
 
   private async getLLM(): Promise<any> {
     if (!this.llmClient) {
-      const { LLMClient } = await import("coze-coding-dev-sdk");
-      const Config = require("coze-coding-dev-sdk").Config;
+      const { LLMClient } = await import("@/lib/sdk");
+      const Config = require("@/lib/sdk").Config;
       this.llmClient = new LLMClient(new Config());
     }
     return this.llmClient;
@@ -362,8 +362,8 @@ ${skillList}
 只输出匹配的技能编号（0 表示不匹配）。`;
 
   try {
-    const { LLMClient: LLMClient2 } = await import("coze-coding-dev-sdk");
-    const Config2 = require("coze-coding-dev-sdk").Config;
+    const { LLMClient: LLMClient2 } = await import("@/lib/sdk");
+    const Config2 = require("@/lib/sdk").Config;
     const llmClient2 = new LLMClient2(new Config2());
     const resp = await llmClient2.invoke(
       [{ role: "user", content: judgePrompt }],
@@ -565,8 +565,8 @@ export async function delegateTaskToAgent(
       { role: "user", content: `请完成以下任务：\n\n${task}` }
     ];
 
-    const { LLMClient } = await import("coze-coding-dev-sdk");
-    const Config = require("coze-coding-dev-sdk").Config;
+    const { LLMClient } = await import("@/lib/sdk");
+    const Config = require("@/lib/sdk").Config;
     const llmClient = new LLMClient(new Config());
 
     const modelConfig = agent.model_config as any || {};

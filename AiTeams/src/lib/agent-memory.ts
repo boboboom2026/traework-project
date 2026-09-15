@@ -1,4 +1,4 @@
-import { EmbeddingClient } from "@/lib/coze-compat";
+import { EmbeddingClient } from "@/lib/sdk";
 import { getSupabaseClient } from "@/storage/database/supabase-client";
 
 export interface MemoryEntry {

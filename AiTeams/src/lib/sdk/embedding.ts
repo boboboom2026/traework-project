@@ -1,7 +1,7 @@
 /**
- * Embedding 客户端（本地兼容层）
+ * Embedding 客户端
  *
- * 替代 coze-coding-dev-sdk 的 EmbeddingClient，基于 openai SDK 实现：
+ * 基于 openai SDK 实现：
  *   - embedText(text, { dimensions })       -> number[]
  *   - embedTexts(texts, { dimensions })     -> number[]（单条向量，语义与 embedText 一致）
  *   - embed / embedImage / embedVideo 等    -> 基础实现（文本向量）

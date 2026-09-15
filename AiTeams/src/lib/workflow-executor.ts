@@ -696,8 +696,8 @@ export class WorkflowExecutor {
   /** LLM 生成步骤 */
   private async executeLLMStep(step: WorkflowStep): Promise<string> {
     const prompt = this.fillTemplate(step.prompt || step.input_template || "");
-    const { LLMClient } = await import("coze-coding-dev-sdk");
-    const Config = (await import("coze-coding-dev-sdk")).Config;
+    const { LLMClient } = await import("@/lib/sdk");
+    const Config = (await import("@/lib/sdk")).Config;
 
     const config = new Config();
     const llmClient = new LLMClient(config);

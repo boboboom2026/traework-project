@@ -1,7 +1,7 @@
 /**
- * 网页抓取客户端（本地兼容层）
+ * 网页抓取客户端
  *
- * 替代 coze-coding-dev-sdk 的 FetchClient，基于原生 fetch 实现：
+ * 基于原生 fetch 实现：
  *   - 文本 / HTML / JSON 内容可提取文本
  *   - PDF 等二进制无法解析时返回错误状态码（status_code !== 0）
  */

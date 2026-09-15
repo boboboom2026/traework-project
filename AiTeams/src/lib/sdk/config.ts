@@ -1,13 +1,13 @@
 /**
- * LLM 配置（本地兼容层）
+ * LLM 配置
  *
- * 替代 coze-coding-dev-sdk 的 Config，读取通用环境变量：
+ * 读取通用环境变量：
  *   LLM_API_KEY    必填，OpenAI 兼容 API Key
  *   LLM_BASE_URL   可选，OpenAI 兼容 Base URL（默认 OpenAI 官方）
  *   LLM_MODEL      可选，默认模型名（各调用点可自行指定 model）
  */
 
-export interface CozeConfig {
+export interface SDKConfig {
   apiKey?: string;
   baseUrl?: string;
   modelBaseUrl?: string;
@@ -24,7 +24,7 @@ export class Config {
   readonly retryDelay: number;
   readonly timeout: number;
 
-  constructor(config?: CozeConfig) {
+  constructor(config?: SDKConfig) {
     this.apiKey = config?.apiKey || process.env.LLM_API_KEY || "";
     this.baseUrl = config?.baseUrl || process.env.LLM_BASE_URL || "";
     this.modelBaseUrl = config?.modelBaseUrl || this.baseUrl;

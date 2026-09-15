@@ -53,7 +53,7 @@ export async function runAgentTool(
     // ---------- 生成图片 ----------
     if (funcName === "generate_image") {
       const ret = await withRetry(async () => {
-        const { ImageGenerationClient, Config } = await import("coze-coding-dev-sdk");
+        const { ImageGenerationClient, Config } = await import("@/lib/sdk");
         const genConfig = new Config();
         const imgClient = new ImageGenerationClient(genConfig, customHeaders);
         const prompt = (funcArgs.prompt as string) || "";
@@ -171,7 +171,7 @@ export async function runAgentTool(
     // ---------- 网络搜索 ----------
     if (funcName === "web_search") {
       const ret = await withRetry(async () => {
-        const { SearchClient, Config: SearchConfig } = await import("coze-coding-dev-sdk");
+        const { SearchClient, Config: SearchConfig } = await import("@/lib/sdk");
         const searchConfig = new SearchConfig();
         const searchClient = new SearchClient(searchConfig, customHeaders);
         const query = (funcArgs.query as string) || "";

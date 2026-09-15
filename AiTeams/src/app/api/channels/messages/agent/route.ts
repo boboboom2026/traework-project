@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = getSupabaseClient();
-    const { HeaderUtils } = await import("@/lib/coze-compat");
+    const { HeaderUtils } = await import("@/lib/sdk");
     const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
 
     // 从请求头中获取 userId（由前端在调用时传入）
